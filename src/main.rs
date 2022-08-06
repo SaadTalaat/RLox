@@ -1,4 +1,3 @@
-mod rlox;
 use rlox::{run_file, run_prompt};
 use std::env;
 
