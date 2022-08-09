@@ -11,7 +11,7 @@ impl RDParser {
             Err(ParseError::new(
                 token,
                 format!(
-                    "Invalid token type: expected {}, found {}",
+                    "expected: {}, found: {}",
                     token_type, token.token_type,
                 ),
             ))
