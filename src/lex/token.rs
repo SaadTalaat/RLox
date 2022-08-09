@@ -15,6 +15,7 @@ pub enum TokenType {
     SemiColon,
     Slash,
     Star,
+    Modulo,
 
     // One or two character tokens
     Bang,
@@ -60,10 +61,31 @@ impl Display for TokenType {
     }
 }
 
+#[derive(Debug)]
+pub enum LiteralValue<'a> {
+    NoValue,
+    Nil,
+    Number(f64),
+    Str(&'a str),
+    Boolean(bool),
+}
+
+impl<'a> Display for LiteralValue<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            LiteralValue::Number(num) => write!(f, "{}", num),
+            LiteralValue::Str(str_ref) => write!(f, "\"{}\"", &str_ref),
+            LiteralValue::Nil => write!(f, "nil"),
+            LiteralValue::Boolean(b) => write!(f, "{}", b),
+            LiteralValue::NoValue => Err(fmt::Error),
+        }
+    }
+}
 /// Token
 #[derive(Debug)]
 pub struct Token<'a> {
-    token_type: TokenType,
+    pub token_type: TokenType,
+    pub value: LiteralValue<'a>,
     lexeme: &'a str,
     line: usize,
     offset: usize,
@@ -78,12 +100,15 @@ impl<'a> Token<'a> {
         offset: usize,
         file_offset: usize,
     ) -> Self {
+        let lexeme = std::str::from_utf8(lexeme).unwrap();
+        let value = Token::value(&token_type, lexeme);
         Token {
             token_type,
-            lexeme: std::str::from_utf8(lexeme).unwrap(),
+            lexeme,
             line,
             offset,
             file_offset,
+            value,
         }
     }
 
@@ -94,14 +119,35 @@ impl<'a> Token<'a> {
     pub fn lexeme(&self) -> &'a str {
         self.lexeme
     }
+
+    // token type reference should only live for the
+    // duration of the function call, or more.
+    // `lexeme` and `LiteralValue`, should live for the
+    // duration of `Token`
+    fn value<'b>(token_type: &TokenType, lexeme: &'a str) -> LiteralValue<'a> {
+        match token_type {
+            TokenType::Number => {
+                // panic, at this stage we shouldn't have non digits in
+                // number tokens.
+                LiteralValue::Number(lexeme.parse::<f64>().unwrap())
+            }
+            TokenType::String => {
+                // Remove the quotes.
+                LiteralValue::Str(&lexeme[1..lexeme.len() - 1])
+            }
+            TokenType::False => LiteralValue::Boolean(false),
+            TokenType::True => LiteralValue::Boolean(true),
+            TokenType::Nil => LiteralValue::Nil,
+            _ => LiteralValue::NoValue,
+        }
+    }
 }
 
 impl Display for Token<'_> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
             f,
-            "Token[type=({}), lexeme=({})",
-            self.token_type,
+            "{}",
             // Should panic, lexme should be always
             // a string
             self.lexeme
