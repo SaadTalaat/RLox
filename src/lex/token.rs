@@ -112,6 +112,10 @@ impl<'a> Token<'a> {
         }
     }
 
+    pub fn token_type(&self) -> &TokenType {
+        &self.token_type
+    }
+
     pub fn lexeme(&self) -> &'a str {
         self.lexeme
     }
@@ -144,8 +148,6 @@ impl Display for Token<'_> {
         write!(
             f,
             "{}",
-            // Should panic, lexme should be always
-            // a string
             self.lexeme
         )
     }

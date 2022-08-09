@@ -66,12 +66,12 @@ impl<'a> Display for Expr<'a> {
                 operator,
                 right,
             } => {
-                write!(f, "{} {} {}", operator, left, right)
+                write!(f, "({} {} {})", operator, left, right)
             }
             Expr::Literal { value } => write!(f, "{}", value),
             Expr::Grouping { expr } => write!(f, "(group {})", expr),
             Expr::Unary { operator, expr } => {
-                write!(f, "{} {}", operator, expr)
+                write!(f, "({} {})", operator, expr)
             }
         }
     }

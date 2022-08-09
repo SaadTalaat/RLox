@@ -1,5 +1,5 @@
 use super::token::{Token, TokenType};
-use super::{error, result};
+use super::{error, Result as LexResult};
 
 pub struct Scanner;
 
@@ -27,7 +27,7 @@ impl Scanner {
         word: &[u8],
         line: usize,
         line_offset: usize,
-    ) -> result::Result<TokenType> {
+    ) -> LexResult<TokenType> {
         let word: &str = std::str::from_utf8(word).map_err(|_| {
             error::Error::new(
                 line,
@@ -80,7 +80,7 @@ impl Scanner {
         source: &[u8],
         line: usize,
         line_offset: usize,
-    ) -> result::Result<&[u8]> {
+    ) -> LexResult<&[u8]> {
         // Skip the initial slash + star "/*"
         let mut cmt_size = 2;
         let mut cmt_block_count = 1;
@@ -119,7 +119,7 @@ impl Scanner {
         source: &[u8],
         line: usize,
         line_offset: usize,
-    ) -> result::Result<&[u8]> {
+    ) -> LexResult<&[u8]> {
         // Account for the initial "
         let mut str_size = 1;
         let at_end = |idx| idx >= source.len();
@@ -187,7 +187,7 @@ impl Scanner {
     }
 
     // Scans the entire source code.
-    pub fn scan(source: &[u8]) -> result::Result<Vec<Token>> {
+    pub fn scan(source: &[u8]) -> LexResult<Vec<Token>> {
         let mut tokens = Vec::with_capacity(10_000_000);
         // Token specific cursors
         let mut line = 0;

@@ -4,7 +4,7 @@ use super::Scanner;
 #[test]
 fn test_scanner_single_char_token_types() {
     let tokens = Scanner::scan(b"(){},.-+/;*").unwrap();
-    assert_eq!(tokens.len(), 11);
+    assert_eq!(tokens.len(), 12);
     assert_eq!(*tokens[0].token_type(), TokenType::LeftParen);
     assert_eq!(*tokens[0].lexeme(), String::from("("));
     assert_eq!(*tokens[1].token_type(), TokenType::RightParen);
@@ -27,9 +27,11 @@ fn test_scanner_single_char_token_types() {
     assert_eq!(*tokens[9].lexeme(), String::from(";"));
     assert_eq!(*tokens[10].token_type(), TokenType::Star);
     assert_eq!(*tokens[10].lexeme(), String::from("*"));
+    assert_eq!(*tokens[11].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[11].lexeme(), String::from("\0"));
 
     let tokens = Scanner::scan(b"(\n)\n{\n}\n,\n.\n\n-\n+\n;\n/\n*").unwrap();
-    assert_eq!(tokens.len(), 11);
+    assert_eq!(tokens.len(), 12);
     assert_eq!(*tokens[0].token_type(), TokenType::LeftParen);
     assert_eq!(*tokens[0].lexeme(), String::from("("));
     assert_eq!(*tokens[1].token_type(), TokenType::RightParen);
@@ -52,9 +54,11 @@ fn test_scanner_single_char_token_types() {
     assert_eq!(*tokens[9].lexeme(), String::from("/"));
     assert_eq!(*tokens[10].token_type(), TokenType::Star);
     assert_eq!(*tokens[10].lexeme(), String::from("*"));
+    assert_eq!(*tokens[11].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[11].lexeme(), String::from("\0"));
 
     let tokens = Scanner::scan(b"(  ) {  } , . - + ; / *").unwrap();
-    assert_eq!(tokens.len(), 11);
+    assert_eq!(tokens.len(), 12);
     assert_eq!(*tokens[0].token_type(), TokenType::LeftParen);
     assert_eq!(*tokens[0].lexeme(), String::from("("));
     assert_eq!(*tokens[1].token_type(), TokenType::RightParen);
@@ -77,9 +81,11 @@ fn test_scanner_single_char_token_types() {
     assert_eq!(*tokens[9].lexeme(), String::from("/"));
     assert_eq!(*tokens[10].token_type(), TokenType::Star);
     assert_eq!(*tokens[10].lexeme(), String::from("*"));
+    assert_eq!(*tokens[11].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[11].lexeme(), String::from("\0"));
 
     let tokens = Scanner::scan(b"(\t)\t{\t}\t,\t.\t-\t+\t;\t/\t*").unwrap();
-    assert_eq!(tokens.len(), 11);
+    assert_eq!(tokens.len(), 12);
     assert_eq!(*tokens[0].token_type(), TokenType::LeftParen);
     assert_eq!(*tokens[0].lexeme(), String::from("("));
     assert_eq!(*tokens[1].token_type(), TokenType::RightParen);
@@ -102,9 +108,11 @@ fn test_scanner_single_char_token_types() {
     assert_eq!(*tokens[9].lexeme(), String::from("/"));
     assert_eq!(*tokens[10].token_type(), TokenType::Star);
     assert_eq!(*tokens[10].lexeme(), String::from("*"));
+    assert_eq!(*tokens[11].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[11].lexeme(), String::from("\0"));
 
     let tokens = Scanner::scan(b"\r(\r)\r{\r}\r,\r.\r-\r+\r;\r/\r*").unwrap();
-    assert_eq!(tokens.len(), 11);
+    assert_eq!(tokens.len(), 12);
     assert_eq!(*tokens[0].token_type(), TokenType::LeftParen);
     assert_eq!(*tokens[0].lexeme(), String::from("("));
     assert_eq!(*tokens[1].token_type(), TokenType::RightParen);
@@ -127,12 +135,14 @@ fn test_scanner_single_char_token_types() {
     assert_eq!(*tokens[9].lexeme(), String::from("/"));
     assert_eq!(*tokens[10].token_type(), TokenType::Star);
     assert_eq!(*tokens[10].lexeme(), String::from("*"));
+    assert_eq!(*tokens[11].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[11].lexeme(), String::from("\0"));
 }
 
 #[test]
 fn test_scanner_single_conditional_token_types() {
     let tokens = Scanner::scan(b"==!==!>>=<<=").unwrap();
-    assert_eq!(tokens.len(), 8);
+    assert_eq!(tokens.len(), 9);
     assert_eq!(*tokens[0].token_type(), TokenType::EqEq);
     assert_eq!(*tokens[0].lexeme(), String::from("=="));
     assert_eq!(*tokens[1].token_type(), TokenType::BangEq);
@@ -149,9 +159,11 @@ fn test_scanner_single_conditional_token_types() {
     assert_eq!(*tokens[6].lexeme(), String::from("<"));
     assert_eq!(*tokens[7].token_type(), TokenType::LessThanEq);
     assert_eq!(*tokens[7].lexeme(), String::from("<="));
+    assert_eq!(*tokens[8].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[8].lexeme(), String::from("\0"));
 
     let tokens = Scanner::scan(b"== != = ! > >= < <=").unwrap();
-    assert_eq!(tokens.len(), 8);
+    assert_eq!(tokens.len(), 9);
     assert_eq!(*tokens[0].token_type(), TokenType::EqEq);
     assert_eq!(*tokens[0].lexeme(), String::from("=="));
     assert_eq!(*tokens[1].token_type(), TokenType::BangEq);
@@ -168,9 +180,11 @@ fn test_scanner_single_conditional_token_types() {
     assert_eq!(*tokens[6].lexeme(), String::from("<"));
     assert_eq!(*tokens[7].token_type(), TokenType::LessThanEq);
     assert_eq!(*tokens[7].lexeme(), String::from("<="));
+    assert_eq!(*tokens[8].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[8].lexeme(), String::from("\0"));
 
     let tokens = Scanner::scan(b"==\r!=\r=\r!\r>\r>=\r<\r<=\r").unwrap();
-    assert_eq!(tokens.len(), 8);
+    assert_eq!(tokens.len(), 9);
     assert_eq!(*tokens[0].token_type(), TokenType::EqEq);
     assert_eq!(*tokens[0].lexeme(), String::from("=="));
     assert_eq!(*tokens[1].token_type(), TokenType::BangEq);
@@ -187,9 +201,11 @@ fn test_scanner_single_conditional_token_types() {
     assert_eq!(*tokens[6].lexeme(), String::from("<"));
     assert_eq!(*tokens[7].token_type(), TokenType::LessThanEq);
     assert_eq!(*tokens[7].lexeme(), String::from("<="));
+    assert_eq!(*tokens[8].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[8].lexeme(), String::from("\0"));
 
     let tokens = Scanner::scan(b"==\n!=\n=\n!\n>\n>=\n<\n<=\n").unwrap();
-    assert_eq!(tokens.len(), 8);
+    assert_eq!(tokens.len(), 9);
     assert_eq!(*tokens[0].token_type(), TokenType::EqEq);
     assert_eq!(*tokens[0].lexeme(), String::from("=="));
     assert_eq!(*tokens[1].token_type(), TokenType::BangEq);
@@ -206,12 +222,14 @@ fn test_scanner_single_conditional_token_types() {
     assert_eq!(*tokens[6].lexeme(), String::from("<"));
     assert_eq!(*tokens[7].token_type(), TokenType::LessThanEq);
     assert_eq!(*tokens[7].lexeme(), String::from("<="));
+    assert_eq!(*tokens[8].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[8].lexeme(), String::from("\0"));
 }
 
 #[test]
 fn test_scanner_number_token_types() {
     let tokens = Scanner::scan(b"0 .1 0. 1. 103.1 12.0 5 1.2.3").unwrap();
-    assert_eq!(tokens.len(), 13);
+    assert_eq!(tokens.len(), 14);
     // 0
     assert_eq!(*tokens[0].token_type(), TokenType::Number);
     assert_eq!(*tokens[0].lexeme(), String::from("0"));
@@ -251,6 +269,9 @@ fn test_scanner_number_token_types() {
     // 3
     assert_eq!(*tokens[12].token_type(), TokenType::Number);
     assert_eq!(*tokens[12].lexeme(), String::from("3"));
+    // EOF
+    assert_eq!(*tokens[13].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[13].lexeme(), String::from("\0"));
 }
 
 #[test]
@@ -259,7 +280,7 @@ fn test_keywords() {
         b"and or while if else for true false nil print return super var class",
     )
     .unwrap();
-    assert_eq!(tokens.len(), 14);
+    assert_eq!(tokens.len(), 15);
     assert_eq!(*tokens[0].token_type(), TokenType::And);
     assert_eq!(*tokens[0].lexeme(), String::from("and"));
     assert_eq!(*tokens[1].token_type(), TokenType::Or);
@@ -288,6 +309,8 @@ fn test_keywords() {
     assert_eq!(*tokens[12].lexeme(), String::from("var"));
     assert_eq!(*tokens[13].token_type(), TokenType::Class);
     assert_eq!(*tokens[13].lexeme(), String::from("class"));
+    assert_eq!(*tokens[14].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[14].lexeme(), String::from("\0"));
 }
 
 #[test]
@@ -326,27 +349,34 @@ fn test_identifiers() {
     assert_eq!(*tokens[12].lexeme(), String::from("var_"));
     assert_eq!(*tokens[13].token_type(), TokenType::Identifier);
     assert_eq!(*tokens[13].lexeme(), String::from("class_"));
+    assert_eq!(*tokens[14].token_type(), TokenType::EOF);
+    assert_eq!(*tokens[14].lexeme(), String::from("\0"));
 }
 
 #[test]
 fn test_comments() {
     let tokens = Scanner::scan(b"// test me here\nabc").unwrap();
-    assert_eq!(tokens.len(), 1);
+    assert_eq!(tokens.len(), 2);
     assert_eq!(*tokens[0].token_type(), TokenType::Identifier);
+    assert_eq!(*tokens[1].token_type(), TokenType::EOF);
 
     let tokens = Scanner::scan(b"/* normal block comment */").unwrap();
-    assert_eq!(tokens.len(), 0);
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(*tokens[0].token_type(), TokenType::EOF);
 
     let tokens = Scanner::scan(b"/* /* nested comment */ */").unwrap();
-    assert_eq!(tokens.len(), 0);
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(*tokens[0].token_type(), TokenType::EOF);
 
     let tokens =
         Scanner::scan(b"/* /* /* even more nested comment */ */ */").unwrap();
-    assert_eq!(tokens.len(), 0);
+    assert_eq!(tokens.len(), 1);
+    assert_eq!(*tokens[0].token_type(), TokenType::EOF);
 
     let tokens =
         Scanner::scan(b"/* /* unbalanced nested comment */ */ */").unwrap();
-    assert_eq!(tokens.len(), 2);
+    assert_eq!(tokens.len(), 3);
     assert_eq!(*tokens[0].token_type(), TokenType::Star);
     assert_eq!(*tokens[1].token_type(), TokenType::Slash);
+    assert_eq!(*tokens[2].token_type(), TokenType::EOF);
 }

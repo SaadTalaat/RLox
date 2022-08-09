@@ -1,13 +1,12 @@
 use super::ast::Expr;
 use super::error::ParseError;
-use super::result::Result as ParseResult;
+use super::Result as ParseResult;
 use crate::lex::{Token, TokenType};
 
 pub struct RDParser;
 /// Stateless version of the Recursive Descent Parser
 impl RDParser {
     fn expect<'a>(token: &'a Token, token_type: TokenType) -> ParseResult<()> {
-        // TODO: Handle this, don't panic!
         if token_type != token.token_type {
             Err(ParseError::new(
                 token,
@@ -166,7 +165,6 @@ impl RDParser {
                 )?;
                 Ok((Expr::grouping(expr), consumed + 2))
             }
-            // Handle this, don't panic.
             _ => Err(ParseError::new(
                 token,
                 format!("Unexpected token: {}", token),

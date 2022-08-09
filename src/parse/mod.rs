@@ -7,3 +7,7 @@ pub mod result;
 pub use ast::Expr;
 pub use immutable_rdparse::RDParser as ImmutableRDParser;
 pub use rdparse::RDParser;
+pub use result::Result;
+
+#[cfg(test)]
+mod tests;

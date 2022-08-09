@@ -1,6 +1,6 @@
 use super::ast::Expr;
 use super::error::ParseError;
-use super::result::Result as ParseResult;
+use super::Result as ParseResult;
 use crate::lex::{Token, TokenType};
 
 pub struct RDParser<'a> {
@@ -30,7 +30,7 @@ impl<'a> RDParser<'a> {
     }
 
     fn advance(&mut self) -> &'a Token<'a> {
-        self.current = self.current + 1;
+        self.current += 1;
         self.previous()
     }
 
@@ -42,7 +42,7 @@ impl<'a> RDParser<'a> {
             Err(ParseError::new(
                 self.current(),
                 format!(
-                    "Cannot consume token type: {}, found: {}",
+                    "expected: {}, found: {}",
                     token_type,
                     self.current().token_type
                 ),
@@ -151,8 +151,12 @@ impl<'a> RDParser<'a> {
             | TokenType::True
             | TokenType::Nil
             | TokenType::Number
-            | TokenType::String => Ok(Expr::literal(&token.value)),
+            | TokenType::String => {
+                self.advance();
+                Ok(Expr::literal(&token.value))
+            }
             TokenType::LeftParen => {
+                self.advance();
                 let expr = self.expression()?;
                 self.consume(TokenType::RightParen)?;
                 Ok(Expr::grouping(expr))
@@ -162,7 +166,6 @@ impl<'a> RDParser<'a> {
                 format!("Unexpected token: {}", token),
             )),
         };
-        self.advance();
         expr
     }
 }
