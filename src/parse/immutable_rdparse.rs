@@ -19,7 +19,6 @@ impl RDParser {
         let mut cursor = 0;
         let mut expressions = vec![];
         while tokens[cursor].token_type != TokenType::EOF {
-            //println!("{}", consumed);
             let (expr, consumed) = Self::expression(&tokens, cursor);
             cursor += consumed;
             expressions.push(expr);
@@ -40,19 +39,20 @@ impl RDParser {
         tokens: &'a Vec<Token>,
         cursor: usize,
     ) -> (Expr<'a>, usize) {
-        let (left, consumed) = Self::comparison(tokens, cursor);
-        let cursor = cursor + consumed;
+        let (left, consumed_left) = Self::comparison(tokens, cursor);
+        let cursor = cursor + consumed_left;
         let token = &tokens[cursor];
         match token.token_type {
             TokenType::EqEq | TokenType::BangEq => {
                 let operator = token;
-                let (right, consumed2) = Self::equality(&tokens, cursor + 1);
+                let (right, consumed_right) =
+                    Self::equality(&tokens, cursor + 1);
                 (
                     Expr::binary(left, &operator, right),
-                    consumed + consumed2 + 1,
+                    consumed_left + consumed_right + 1,
                 )
             }
-            _ => (left, consumed),
+            _ => (left, consumed_left),
         }
     }
 
@@ -60,8 +60,8 @@ impl RDParser {
         tokens: &'a Vec<Token>,
         cursor: usize,
     ) -> (Expr<'a>, usize) {
-        let (left, consumed) = Self::term(tokens, cursor);
-        let cursor = cursor + consumed;
+        let (left, consumed_left) = Self::term(tokens, cursor);
+        let cursor = cursor + consumed_left;
         let token = &tokens[cursor];
         match token.token_type {
             TokenType::LessThan
@@ -69,47 +69,48 @@ impl RDParser {
             | TokenType::GreaterThan
             | TokenType::GreaterThanEq => {
                 let operator = token;
-                let (right, consumed2) = Self::comparison(&tokens, cursor + 1);
+                let (right, consumed_right) =
+                    Self::comparison(&tokens, cursor + 1);
                 (
                     Expr::binary(left, &operator, right),
-                    consumed + consumed2 + 1,
+                    consumed_left + consumed_right + 1,
                 )
             }
-            _ => (left, consumed),
+            _ => (left, consumed_left),
         }
     }
 
     fn term<'a>(tokens: &'a Vec<Token>, cursor: usize) -> (Expr<'a>, usize) {
-        let (left, consumed) = Self::factor(tokens, cursor);
-        let cursor = cursor + consumed;
+        let (left, consumed_left) = Self::factor(tokens, cursor);
+        let cursor = cursor + consumed_left;
         let token = &tokens[cursor];
         match token.token_type {
             TokenType::Plus | TokenType::Minus => {
                 let operator = token;
-                let (right, consumed2) = Self::term(&tokens, cursor + 1);
+                let (right, consumed_right) = Self::term(&tokens, cursor + 1);
                 (
                     Expr::binary(left, &operator, right),
-                    consumed + consumed2 + 1,
+                    consumed_left + consumed_right + 1,
                 )
             }
-            _ => (left, consumed),
+            _ => (left, consumed_left),
         }
     }
 
     fn factor<'a>(tokens: &'a Vec<Token>, cursor: usize) -> (Expr<'a>, usize) {
-        let (left, consumed) = Self::unary(tokens, cursor);
-        let cursor = cursor + consumed;
+        let (left, consumed_left) = Self::unary(tokens, cursor);
+        let cursor = cursor + consumed_left;
         let token = &tokens[cursor];
         match token.token_type {
             TokenType::Slash | TokenType::Star | TokenType::Modulo => {
                 let operator = token;
-                let (right, consumed2) = Self::factor(&tokens, cursor + 1);
+                let (right, consumed_right) = Self::factor(&tokens, cursor + 1);
                 (
                     Expr::binary(left, &operator, right),
-                    consumed + consumed2 + 1,
+                    consumed_left + consumed_right + 1,
                 )
             }
-            _ => (left, consumed),
+            _ => (left, consumed_left),
         }
     }
 
