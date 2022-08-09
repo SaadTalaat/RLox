@@ -1,4 +1,6 @@
 use super::ast::Expr;
+use super::error::ParseError;
+use super::result::Result as ParseResult;
 use crate::lex::{Token, TokenType};
 
 pub struct RDParser<'a> {
@@ -32,119 +34,133 @@ impl<'a> RDParser<'a> {
         self.previous()
     }
 
-    fn consume(&mut self, token_type: TokenType) -> &'a Token<'a> {
+    fn consume(&mut self, token_type: TokenType) -> ParseResult<&Token<'a>> {
         if self.check(&token_type) {
-            self.advance()
+            Ok(self.advance())
         } else {
             // TODO: Actually handle this
-            panic!(
-                "Cannot consume token type: {}, found: {}",
-                token_type,
-                self.current().token_type
-            );
+            Err(ParseError::new(
+                self.current(),
+                format!(
+                    "Cannot consume token type: {}, found: {}",
+                    token_type,
+                    self.current().token_type
+                ),
+            ))
         }
     }
 
-    pub fn parse(&mut self) -> Vec<Expr<'a>> {
-        let mut exprs = vec![];
+    pub fn parse(&mut self) -> ParseResult<Vec<Expr<'a>>> {
+        let mut exprs: Vec<Expr> = Vec::with_capacity(10_000_000);
         while !self.at_end() {
-            let expr = self.expression();
+            let expr = self.expression()?;
             exprs.push(expr);
-            self.consume(TokenType::SemiColon);
+            self.consume(TokenType::SemiColon)?;
         }
-        exprs
+        Ok(exprs)
     }
 
-    fn expression(&mut self) -> Expr<'a> {
+    fn expression(&mut self) -> ParseResult<Expr<'a>> {
         self.equality()
     }
 
-    fn equality(&mut self) -> Expr<'a> {
-        let left = self.comparison();
-        let token = self.current();
-        match token.token_type {
-            TokenType::EqEq | TokenType::BangEq => {
-                let operator = token;
-                self.advance();
-                let right = self.equality();
-                Expr::binary(left, &operator, right)
+    fn equality(&mut self) -> ParseResult<Expr<'a>> {
+        let mut left = self.comparison()?;
+        loop {
+            let token = self.current();
+            match token.token_type {
+                TokenType::EqEq | TokenType::BangEq => {
+                    let operator = token;
+                    self.advance();
+                    let right = self.comparison()?;
+                    left = Expr::binary(left, &operator, right);
+                }
+                _ => break Ok(left),
             }
-            _ => left,
         }
     }
 
-    fn comparison(&mut self) -> Expr<'a> {
-        let left = self.term();
-        let token = self.current();
-        match token.token_type {
-            TokenType::LessThan
-            | TokenType::LessThanEq
-            | TokenType::GreaterThan
-            | TokenType::GreaterThanEq => {
-                let operator = token;
-                self.advance();
-                let right = self.comparison();
-                Expr::binary(left, operator, right)
+    fn comparison(&mut self) -> ParseResult<Expr<'a>> {
+        let mut left = self.term()?;
+        loop {
+            let token = self.current();
+            match token.token_type {
+                TokenType::LessThan
+                | TokenType::LessThanEq
+                | TokenType::GreaterThan
+                | TokenType::GreaterThanEq => {
+                    let operator = token;
+                    self.advance();
+                    let right = self.term()?;
+                    left = Expr::binary(left, operator, right)
+                }
+                _ => break Ok(left),
             }
-            _ => left,
         }
     }
 
-    fn term(&mut self) -> Expr<'a> {
-        let left = self.factor();
-        let token = self.current();
-        match &token.token_type {
-            TokenType::Plus | TokenType::Minus => {
-                let operator = token;
-                self.advance();
-                let right = self.term();
-                Expr::binary(left, &operator, right)
+    fn term(&mut self) -> ParseResult<Expr<'a>> {
+        let mut left = self.factor()?;
+        loop {
+            let token = self.current();
+            match &token.token_type {
+                TokenType::Plus | TokenType::Minus => {
+                    let operator = token;
+                    self.advance();
+                    let right = self.factor()?;
+                    left = Expr::binary(left, &operator, right);
+                }
+                _ => break Ok(left),
             }
-            _ => left,
         }
     }
 
-    fn factor(&mut self) -> Expr<'a> {
-        let left = self.unary();
-        let token = self.current();
-        match token.token_type {
-            TokenType::Slash | TokenType::Star | TokenType::Modulo => {
-                let operator = token;
-                self.advance();
-                let right = self.factor();
-                Expr::binary(left, &operator, right)
+    fn factor(&mut self) -> ParseResult<Expr<'a>> {
+        let mut left = self.unary()?;
+        loop {
+            let token = self.current();
+            match token.token_type {
+                TokenType::Slash | TokenType::Star | TokenType::Modulo => {
+                    let operator = token;
+                    self.advance();
+                    let right = self.unary()?;
+                    left = Expr::binary(left, &operator, right);
+                }
+                _ => break Ok(left),
             }
-            _ => left,
         }
     }
 
-    fn unary(&mut self) -> Expr<'a> {
+    fn unary(&mut self) -> ParseResult<Expr<'a>> {
         let token = self.current();
         match token.token_type {
             TokenType::Bang | TokenType::Minus => {
                 let operator = token;
                 self.advance();
-                let expr = self.unary();
-                Expr::unary(&operator, expr)
+                let expr = self.unary()?;
+                Ok(Expr::unary(&operator, expr))
             }
             _ => self.primary(),
         }
     }
 
-    fn primary(&mut self) -> Expr<'a> {
+    fn primary(&mut self) -> ParseResult<Expr<'a>> {
         let token = self.current();
         let expr = match token.token_type {
             TokenType::False
             | TokenType::True
             | TokenType::Nil
             | TokenType::Number
-            | TokenType::String => Expr::literal(&token.value),
+            | TokenType::String => Ok(Expr::literal(&token.value)),
             TokenType::LeftParen => {
-                let expr = self.expression();
-                self.consume(TokenType::RightParen);
-                Expr::grouping(expr)
+                let expr = self.expression()?;
+                self.consume(TokenType::RightParen)?;
+                Ok(Expr::grouping(expr))
             }
-            _ => panic!("Unexpected token: {:?}", token),
+            _ => Err(ParseError::new(
+                token,
+                format!("Unexpected token: {}", token),
+            )),
         };
         self.advance();
         expr

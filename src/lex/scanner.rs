@@ -188,7 +188,7 @@ impl Scanner {
 
     // Scans the entire source code.
     pub fn scan(source: &[u8]) -> result::Result<Vec<Token>> {
-        let mut tokens = vec![];
+        let mut tokens = Vec::with_capacity(10_000_000);
         // Token specific cursors
         let mut line = 0;
         let mut line_offset = 0;
@@ -309,7 +309,6 @@ impl Scanner {
             line_offset + 1,
             cur + 1,
         ));
-
         Ok(tokens)
     }
 }

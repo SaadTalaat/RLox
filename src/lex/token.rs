@@ -87,8 +87,8 @@ pub struct Token<'a> {
     pub token_type: TokenType,
     pub value: LiteralValue<'a>,
     lexeme: &'a str,
-    line: usize,
-    offset: usize,
+    pub line: usize,
+    pub offset: usize,
     file_offset: usize,
 }
 
@@ -112,10 +112,6 @@ impl<'a> Token<'a> {
         }
     }
 
-    pub fn token_type(&self) -> &TokenType {
-        &self.token_type
-    }
-
     pub fn lexeme(&self) -> &'a str {
         self.lexeme
     }
@@ -126,6 +122,9 @@ impl<'a> Token<'a> {
     // duration of `Token`
     fn value<'b>(token_type: &TokenType, lexeme: &'a str) -> LiteralValue<'a> {
         match token_type {
+            TokenType::False => LiteralValue::Boolean(false),
+            TokenType::True => LiteralValue::Boolean(true),
+            TokenType::Nil => LiteralValue::Nil,
             TokenType::Number => {
                 // panic, at this stage we shouldn't have non digits in
                 // number tokens.
@@ -135,9 +134,6 @@ impl<'a> Token<'a> {
                 // Remove the quotes.
                 LiteralValue::Str(&lexeme[1..lexeme.len() - 1])
             }
-            TokenType::False => LiteralValue::Boolean(false),
-            TokenType::True => LiteralValue::Boolean(true),
-            TokenType::Nil => LiteralValue::Nil,
             _ => LiteralValue::NoValue,
         }
     }
