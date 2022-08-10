@@ -10,10 +10,7 @@ impl RDParser {
         if token_type != token.token_type {
             Err(ParseError::new(
                 token,
-                format!(
-                    "expected: {}, found: {}",
-                    token_type, token.token_type,
-                ),
+                format!("expected: {}, found: {}", token_type, token.token_type,),
             ))
         } else {
             Ok(())
@@ -33,17 +30,32 @@ impl RDParser {
         Ok(exprs)
     }
 
-    fn expression<'a>(
-        tokens: &'a Vec<Token>,
-        cursor: usize,
-    ) -> ParseResult<(Expr<'a>, usize)> {
-        Self::equality(&tokens, cursor)
+    fn expression<'a>(tokens: &'a Vec<Token>, cursor: usize) -> ParseResult<(Expr<'a>, usize)> {
+        Self::ternary(&tokens, cursor)
     }
 
-    fn equality<'a>(
-        tokens: &'a Vec<Token>,
-        cursor: usize,
-    ) -> ParseResult<(Expr<'a>, usize)> {
+    fn ternary<'a>(tokens: &'a Vec<Token>, cursor: usize) -> ParseResult<(Expr<'a>, usize)> {
+        let (root, consumed) = Self::equality(tokens, cursor)?;
+        let start_cursor = cursor;
+        let mut cursor = cursor + consumed;
+        let token = &tokens[cursor];
+        match token.token_type {
+            TokenType::Qmark => {
+                let (left_operand, consumed_left) = Self::equality(tokens, cursor + 1)?;
+                // +1 to account for the Qmark
+                cursor += consumed_left + 1;
+                Self::expect(&tokens[cursor], TokenType::Colon)?;
+                let (right_operand, consumed_right) = Self::ternary(tokens, cursor + 1)?;
+                // +1 to account for the Colon
+                cursor += consumed_right + 1;
+                let expr = Expr::ternary(root, left_operand, right_operand);
+                Ok((expr, cursor - start_cursor))
+            }
+            _ => Ok((root, consumed)),
+        }
+    }
+
+    fn equality<'a>(tokens: &'a Vec<Token>, cursor: usize) -> ParseResult<(Expr<'a>, usize)> {
         let (mut left, mut consumed_left) = Self::comparison(tokens, cursor)?;
         let mut cursor = cursor + consumed_left;
         loop {
@@ -51,8 +63,7 @@ impl RDParser {
             match token.token_type {
                 TokenType::EqEq | TokenType::BangEq => {
                     let operator = token;
-                    let (right, consumed_right) =
-                        Self::equality(&tokens, cursor + 1)?;
+                    let (right, consumed_right) = Self::equality(&tokens, cursor + 1)?;
                     left = Expr::binary(left, &operator, right);
                     consumed_left += consumed_right + 1;
                     cursor += consumed_right + 1;
@@ -62,10 +73,7 @@ impl RDParser {
         }
     }
 
-    fn comparison<'a>(
-        tokens: &'a Vec<Token>,
-        cursor: usize,
-    ) -> ParseResult<(Expr<'a>, usize)> {
+    fn comparison<'a>(tokens: &'a Vec<Token>, cursor: usize) -> ParseResult<(Expr<'a>, usize)> {
         let (mut left, mut consumed_left) = Self::term(tokens, cursor)?;
         let mut cursor = cursor + consumed_left;
         loop {
@@ -76,8 +84,7 @@ impl RDParser {
                 | TokenType::GreaterThan
                 | TokenType::GreaterThanEq => {
                     let operator = token;
-                    let (right, consumed_right) =
-                        Self::term(&tokens, cursor + 1)?;
+                    let (right, consumed_right) = Self::term(&tokens, cursor + 1)?;
                     left = Expr::binary(left, &operator, right);
                     consumed_left += consumed_right + 1;
                     cursor += consumed_right + 1;
@@ -87,10 +94,7 @@ impl RDParser {
         }
     }
 
-    fn term<'a>(
-        tokens: &'a Vec<Token>,
-        cursor: usize,
-    ) -> ParseResult<(Expr<'a>, usize)> {
+    fn term<'a>(tokens: &'a Vec<Token>, cursor: usize) -> ParseResult<(Expr<'a>, usize)> {
         let (mut left, mut consumed_left) = Self::factor(tokens, cursor)?;
         let mut cursor = cursor + consumed_left;
         loop {
@@ -98,8 +102,7 @@ impl RDParser {
             match token.token_type {
                 TokenType::Plus | TokenType::Minus => {
                     let operator = token;
-                    let (right, consumed_right) =
-                        Self::factor(&tokens, cursor + 1)?;
+                    let (right, consumed_right) = Self::factor(&tokens, cursor + 1)?;
                     left = Expr::binary(left, &operator, right);
                     consumed_left += consumed_right + 1;
                     cursor += consumed_right + 1;
@@ -109,10 +112,7 @@ impl RDParser {
         }
     }
 
-    fn factor<'a>(
-        tokens: &'a Vec<Token>,
-        cursor: usize,
-    ) -> ParseResult<(Expr<'a>, usize)> {
+    fn factor<'a>(tokens: &'a Vec<Token>, cursor: usize) -> ParseResult<(Expr<'a>, usize)> {
         let (mut left, mut consumed_left) = Self::unary(tokens, cursor)?;
         let mut cursor = cursor + consumed_left;
         loop {
@@ -120,8 +120,7 @@ impl RDParser {
             match token.token_type {
                 TokenType::Slash | TokenType::Star | TokenType::Modulo => {
                     let operator = token;
-                    let (right, consumed_right) =
-                        Self::unary(&tokens, cursor + 1)?;
+                    let (right, consumed_right) = Self::unary(&tokens, cursor + 1)?;
                     left = Expr::binary(left, &operator, right);
                     consumed_left += consumed_right + 1;
                     cursor += consumed_right + 1;
@@ -131,10 +130,7 @@ impl RDParser {
         }
     }
 
-    fn unary<'a>(
-        tokens: &'a Vec<Token>,
-        cursor: usize,
-    ) -> ParseResult<(Expr<'a>, usize)> {
+    fn unary<'a>(tokens: &'a Vec<Token>, cursor: usize) -> ParseResult<(Expr<'a>, usize)> {
         let token = &tokens[cursor];
         match token.token_type {
             TokenType::Bang | TokenType::Minus => {
@@ -146,10 +142,7 @@ impl RDParser {
         }
     }
 
-    fn primary<'a>(
-        tokens: &'a Vec<Token>,
-        cursor: usize,
-    ) -> ParseResult<(Expr<'a>, usize)> {
+    fn primary<'a>(tokens: &'a Vec<Token>, cursor: usize) -> ParseResult<(Expr<'a>, usize)> {
         let token = &tokens[cursor];
         match token.token_type {
             TokenType::False
@@ -159,10 +152,7 @@ impl RDParser {
             | TokenType::String => Ok((Expr::literal(&token.value), 1)),
             TokenType::LeftParen => {
                 let (expr, consumed) = Self::expression(&tokens, cursor + 1)?;
-                Self::expect(
-                    &tokens[cursor + consumed + 1],
-                    TokenType::RightParen,
-                )?;
+                Self::expect(&tokens[cursor + consumed + 1], TokenType::RightParen)?;
                 Ok((Expr::grouping(expr), consumed + 2))
             }
             _ => Err(ParseError::new(

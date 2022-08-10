@@ -16,6 +16,8 @@ pub enum TokenType {
     Slash,
     Star,
     Modulo,
+    Qmark,
+    Colon,
 
     // One or two character tokens
     Bang,
@@ -145,10 +147,6 @@ impl<'a> Token<'a> {
 
 impl Display for Token<'_> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            self.lexeme
-        )
+        write!(f, "{}", self.lexeme)
     }
 }

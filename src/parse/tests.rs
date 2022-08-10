@@ -183,6 +183,25 @@ fn test_comparison_left_associative() -> super::Result<()> {
 }
 
 #[test]
+fn test_ternary_operators() -> super::Result<()> {
+    let tokens = Scanner::scan(b"1 == 2 ? 1 : 2;").unwrap();
+    let mut parser = RDParser::new(&tokens);
+    let exprs = parser.parse()?;
+    assert_eq!(exprs.len(), 1);
+    assert!(matches!(exprs[0], Expr::Ternary { .. }));
+    assert_eq!("((== 1 2) ? 1 : 2)", format!("{}", exprs[0]));
+
+    let tokens = Scanner::scan(b"1 == 2 ? 1 : 2 ? 3:4;").unwrap();
+    let mut parser = RDParser::new(&tokens);
+    let exprs = parser.parse()?;
+    assert_eq!(exprs.len(), 1);
+    assert!(matches!(exprs[0], Expr::Ternary { .. }));
+    assert_eq!("((== 1 2) ? 1 : (2 ? 3 : 4))", format!("{}", exprs[0]));
+
+    Ok(())
+}
+
+#[test]
 #[should_panic(expected = "expected: SemiColon, found: Number")]
 fn test_illegal_literal_after_expr() {
     let tokens = Scanner::scan(b"1 + 2 3;").unwrap();
@@ -399,6 +418,23 @@ fn test_immutable_comparison_left_associative() -> super::Result<()> {
     assert_eq!(exprs.len(), 1);
     assert!(matches!(exprs[0], Expr::Binary { .. }));
     assert_eq!("(> (> 1 2) 3)", format!("{}", exprs[0]));
+
+    Ok(())
+}
+
+#[test]
+fn test_immutable_ternary_operators() -> super::Result<()> {
+    let tokens = Scanner::scan(b"1 == 2 ? 1 : 2;").unwrap();
+    let exprs = ImmutableRDParser::parse(&tokens)?;
+    assert_eq!(exprs.len(), 1);
+    assert!(matches!(exprs[0], Expr::Ternary { .. }));
+    assert_eq!("((== 1 2) ? 1 : 2)", format!("{}", exprs[0]));
+
+    let tokens = Scanner::scan(b"1 == 2 ? 1 : 2 ? 3:4;").unwrap();
+    let exprs = ImmutableRDParser::parse(&tokens)?;
+    assert_eq!(exprs.len(), 1);
+    assert!(matches!(exprs[0], Expr::Ternary { .. }));
+    assert_eq!("((== 1 2) ? 1 : (2 ? 3 : 4))", format!("{}", exprs[0]));
 
     Ok(())
 }

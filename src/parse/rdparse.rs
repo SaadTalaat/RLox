@@ -61,7 +61,23 @@ impl<'a> RDParser<'a> {
     }
 
     fn expression(&mut self) -> ParseResult<Expr<'a>> {
-        self.equality()
+        self.ternary()
+    }
+
+    fn ternary(&mut self) -> ParseResult<Expr<'a>> {
+        let root = self.equality()?;
+        let token = self.current();
+        match token.token_type {
+            TokenType::Qmark => {
+                self.advance();
+                let left_operand = self.equality()?;
+                self.consume(TokenType::Colon)?;
+                let right_operand = self.ternary()?;
+                let expr = Expr::ternary(root, left_operand, right_operand);
+                Ok(expr)
+            }
+            _ => Ok(root),
+        }
     }
 
     fn equality(&mut self) -> ParseResult<Expr<'a>> {

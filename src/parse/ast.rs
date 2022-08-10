@@ -9,6 +9,11 @@ pub enum Expr<'a> {
     Literal {
         value: &'a LiteralValue<'a>,
     },
+    Ternary {
+        root: Box<Expr<'a>>,
+        left: Box<Expr<'a>>,
+        right: Box<Expr<'a>>,
+    },
     Binary {
         left: Box<Expr<'a>>,
         operator: &'a Token<'a>,
@@ -32,11 +37,15 @@ impl<'a> Expr<'a> {
         Expr::Literal { value }
     }
 
-    pub fn binary(
-        left: Expr<'a>,
-        operator: &'a Token,
-        right: Expr<'a>,
-    ) -> Expr<'a> {
+    pub fn ternary(root: Expr<'a>, left: Expr<'a>, right: Expr<'a>) -> Expr<'a> {
+        Expr::Ternary {
+            root: Box::new(root),
+            left: Box::new(left),
+            right: Box::new(right),
+        }
+    }
+
+    pub fn binary(left: Expr<'a>, operator: &'a Token, right: Expr<'a>) -> Expr<'a> {
         Expr::Binary {
             left: Box::new(left),
             operator,
@@ -61,6 +70,9 @@ impl<'a> Expr<'a> {
 impl<'a> Display for Expr<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
+            Expr::Ternary { root, left, right } => {
+                write!(f, "({} ? {} : {})", root, left, right)
+            }
             Expr::Binary {
                 left,
                 operator,

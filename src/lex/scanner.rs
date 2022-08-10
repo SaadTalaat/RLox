@@ -23,11 +23,7 @@ impl Scanner {
 
     // Determines identifier type
     // returns an error in case the identifier contains non UTF-8 characters.
-    fn identifier_type(
-        word: &[u8],
-        line: usize,
-        line_offset: usize,
-    ) -> LexResult<TokenType> {
+    fn identifier_type(word: &[u8], line: usize, line_offset: usize) -> LexResult<TokenType> {
         let word: &str = std::str::from_utf8(word).map_err(|_| {
             error::Error::new(
                 line,
@@ -76,11 +72,7 @@ impl Scanner {
     }
 
     // Scans nested block comments
-    fn scan_block_comment(
-        source: &[u8],
-        line: usize,
-        line_offset: usize,
-    ) -> LexResult<&[u8]> {
+    fn scan_block_comment(source: &[u8], line: usize, line_offset: usize) -> LexResult<&[u8]> {
         // Skip the initial slash + star "/*"
         let mut cmt_size = 2;
         let mut cmt_block_count = 1;
@@ -115,11 +107,7 @@ impl Scanner {
     }
 
     // Scans string literals
-    fn scan_string(
-        source: &[u8],
-        line: usize,
-        line_offset: usize,
-    ) -> LexResult<&[u8]> {
+    fn scan_string(source: &[u8], line: usize, line_offset: usize) -> LexResult<&[u8]> {
         // Account for the initial "
         let mut str_size = 1;
         let at_end = |idx| idx >= source.len();
@@ -222,13 +210,13 @@ impl Scanner {
                 ';' => (Some(TokenType::SemiColon), &source[cur..cur + 1]),
                 '*' => (Some(TokenType::Star), &source[cur..cur + 1]),
                 '%' => (Some(TokenType::Modulo), &source[cur..cur + 1]),
+                '?' => (Some(TokenType::Qmark), &source[cur..cur + 1]),
+                ':' => (Some(TokenType::Colon), &source[cur..cur + 1]),
 
                 // Conditional expressions.
                 '=' => match look_ahead(cur) {
                     '=' => (Some(TokenType::EqEq), &source[cur..cur + 2]),
-                    '>' => {
-                        (Some(TokenType::EqGreaterThan), &source[cur..cur + 2])
-                    }
+                    '>' => (Some(TokenType::EqGreaterThan), &source[cur..cur + 2]),
                     _ => (Some(TokenType::Equal), &source[cur..cur + 1]),
                 },
                 '!' => match look_ahead(cur) {
@@ -236,9 +224,7 @@ impl Scanner {
                     _ => (Some(TokenType::Bang), &source[cur..cur + 1]),
                 },
                 '>' => match look_ahead(cur) {
-                    '=' => {
-                        (Some(TokenType::GreaterThanEq), &source[cur..cur + 2])
-                    }
+                    '=' => (Some(TokenType::GreaterThanEq), &source[cur..cur + 2]),
                     _ => (Some(TokenType::GreaterThan), &source[cur..cur + 1]),
                 },
                 '<' => match look_ahead(cur) {
@@ -253,11 +239,7 @@ impl Scanner {
                 }
                 // Block comments /* .... /* ..... */ ...*/
                 '/' if look_ahead(cur) == '*' => {
-                    let lexeme = Self::scan_block_comment(
-                        &source[cur..],
-                        line,
-                        line_offset,
-                    )?;
+                    let lexeme = Self::scan_block_comment(&source[cur..], line, line_offset)?;
                     (None, lexeme)
                 }
 
@@ -266,8 +248,7 @@ impl Scanner {
 
                 // Strings
                 '"' => {
-                    let lexeme =
-                        Self::scan_string(&source[cur..], line, line_offset)?;
+                    let lexeme = Self::scan_string(&source[cur..], line, line_offset)?;
                     (Some(TokenType::String), lexeme)
                 }
 
@@ -279,8 +260,7 @@ impl Scanner {
                 // Keywords & Identifiers
                 '_' | 'a'..='z' | 'A'..='Z' => {
                     let lexeme = Self::scan_identifier(&source[cur..]);
-                    let token_type =
-                        Self::identifier_type(lexeme, line, line_offset)?;
+                    let token_type = Self::identifier_type(lexeme, line, line_offset)?;
                     (Some(token_type), lexeme)
                 }
                 // Unrecognized literal

@@ -276,10 +276,9 @@ fn test_scanner_number_token_types() {
 
 #[test]
 fn test_keywords() {
-    let tokens = Scanner::scan(
-        b"and or while if else for true false nil print return super var class",
-    )
-    .unwrap();
+    let tokens =
+        Scanner::scan(b"and or while if else for true false nil print return super var class")
+            .unwrap();
     assert_eq!(tokens.len(), 15);
     assert_eq!(*tokens[0].token_type(), TokenType::And);
     assert_eq!(*tokens[0].lexeme(), String::from("and"));
@@ -316,8 +315,7 @@ fn test_keywords() {
 #[test]
 fn test_identifiers() {
     let tokens = Scanner::scan(
-        b"and_ or_ while_ if_ else_ for_ true_ false_ nil_ print_ return_ super_ var_ class_"
-            ,
+        b"and_ or_ while_ if_ else_ for_ true_ false_ nil_ print_ return_ super_ var_ class_",
     )
     .unwrap();
 
@@ -368,13 +366,11 @@ fn test_comments() {
     assert_eq!(tokens.len(), 1);
     assert_eq!(*tokens[0].token_type(), TokenType::EOF);
 
-    let tokens =
-        Scanner::scan(b"/* /* /* even more nested comment */ */ */").unwrap();
+    let tokens = Scanner::scan(b"/* /* /* even more nested comment */ */ */").unwrap();
     assert_eq!(tokens.len(), 1);
     assert_eq!(*tokens[0].token_type(), TokenType::EOF);
 
-    let tokens =
-        Scanner::scan(b"/* /* unbalanced nested comment */ */ */").unwrap();
+    let tokens = Scanner::scan(b"/* /* unbalanced nested comment */ */ */").unwrap();
     assert_eq!(tokens.len(), 3);
     assert_eq!(*tokens[0].token_type(), TokenType::Star);
     assert_eq!(*tokens[1].token_type(), TokenType::Slash);
