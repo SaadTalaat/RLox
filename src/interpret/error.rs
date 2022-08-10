@@ -11,7 +11,7 @@ pub struct RuntimeError<'a> {
 
 impl<'a> RuntimeError<'a> {
     pub fn new(token: &'a Token, message: String) -> Self {
-        let line_str = token.source.lines().collect::<Vec<&str>>()[token.line_index];
+        let line_str = token.line_str;
         Self {
             token,
             line_str,

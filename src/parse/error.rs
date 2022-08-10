@@ -11,9 +11,7 @@ pub struct ParseError<'a> {
 
 impl<'a> ParseError<'a> {
     pub fn new(token: &'a Token, message: String) -> Self {
-        let lines = token.source.lines().collect::<Vec<&str>>();
-        let line_index = token.line_index.min(lines.len() - 1);
-        let line_str = lines[line_index];
+        let line_str = token.line_str;
         Self {
             token,
             line_str,

@@ -190,8 +190,10 @@ impl Scanner {
     }
 
     // Scans the entire source code.
-    pub fn scan(source: &[u8]) -> Result<Vec<Token>> {
+    pub fn scan(source_str: &str) -> Result<Vec<Token>> {
         let mut tokens = Vec::with_capacity(10_000_000);
+        let lines = source_str.lines().collect::<Vec<&str>>();
+        let source = source_str.as_bytes();
         // Token specific cursors
         let mut line = 0;
         let mut line_offset = 0;
@@ -295,7 +297,8 @@ impl Scanner {
                 tokens.push(Token::new(
                     ttype,
                     lexeme,
-                    std::str::from_utf8(source).unwrap(),
+                    source_str,
+                    lines[line],
                     line,
                     line_offset,
                     cur,
@@ -307,9 +310,10 @@ impl Scanner {
         tokens.push(Token::new(
             TokenType::EOF,
             b"\0",
-            std::str::from_utf8(source).unwrap(),
+            source_str,
+            lines[line - 1],
             line,
-            line_offset + 1,
+            lines[line - 1].len() - 1,
             cur + 1,
         ));
         Ok(tokens)
