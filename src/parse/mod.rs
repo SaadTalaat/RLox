@@ -1,10 +1,11 @@
 mod ast;
-pub mod error;
+mod error;
 mod immutable_rdparse;
 mod rdparse;
-pub mod result;
+mod result;
 
-pub use ast::Expr;
+pub use ast::{Expr, Stmt};
+pub use error::ParseError;
 pub use immutable_rdparse::RDParser as ImmutableRDParser;
 pub use rdparse::RDParser;
 pub use result::Result;

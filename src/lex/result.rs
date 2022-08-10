@@ -1,3 +1,3 @@
-use super::error::Error;
+use super::error::LexicalError;
 use std::result;
-pub type Result<'a, T> = result::Result<T, Error<'a>>;
+pub type Result<'a, T> = result::Result<T, LexicalError<'a>>;

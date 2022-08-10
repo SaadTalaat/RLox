@@ -1,3 +1,4 @@
+use crate::LiteralValue;
 use std::fmt::{self, Display, Formatter};
 use std::str;
 
@@ -63,33 +64,14 @@ impl Display for TokenType {
     }
 }
 
-#[derive(Debug)]
-pub enum LiteralValue<'a> {
-    NoValue,
-    Nil,
-    Number(f64),
-    Str(&'a str),
-    Boolean(bool),
-}
-
-impl<'a> Display for LiteralValue<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            LiteralValue::Number(num) => write!(f, "{}", num),
-            LiteralValue::Str(str_ref) => write!(f, "\"{}\"", &str_ref),
-            LiteralValue::Nil => write!(f, "nil"),
-            LiteralValue::Boolean(b) => write!(f, "{}", b),
-            LiteralValue::NoValue => Err(fmt::Error),
-        }
-    }
-}
 /// Token
 #[derive(Debug)]
 pub struct Token<'a> {
     pub token_type: TokenType,
     pub value: LiteralValue<'a>,
     lexeme: &'a str,
-    pub line: usize,
+    pub source: &'a str,
+    pub line_index: usize,
     pub offset: usize,
     file_offset: usize,
 }
@@ -98,7 +80,8 @@ impl<'a> Token<'a> {
     pub fn new(
         token_type: TokenType,
         lexeme: &'a [u8],
-        line: usize,
+        source: &'a str,
+        line_index: usize,
         offset: usize,
         file_offset: usize,
     ) -> Self {
@@ -107,7 +90,8 @@ impl<'a> Token<'a> {
         Token {
             token_type,
             lexeme,
-            line,
+            source,
+            line_index,
             offset,
             file_offset,
             value,
@@ -138,7 +122,7 @@ impl<'a> Token<'a> {
             }
             TokenType::String => {
                 // Remove the quotes.
-                LiteralValue::Str(&lexeme[1..lexeme.len() - 1])
+                LiteralValue::StaticStr(&lexeme[1..lexeme.len() - 1])
             }
             _ => LiteralValue::NoValue,
         }

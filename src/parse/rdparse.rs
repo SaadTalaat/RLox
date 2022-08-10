@@ -1,6 +1,6 @@
-use super::ast::Expr;
+use super::ast::{Expr, Stmt};
 use super::error::ParseError;
-use super::Result as ParseResult;
+use super::Result;
 use crate::lex::{Token, TokenType};
 
 pub struct RDParser<'a> {
@@ -34,44 +34,125 @@ impl<'a> RDParser<'a> {
         self.previous()
     }
 
-    fn consume(&mut self, token_type: TokenType) -> ParseResult<&Token<'a>> {
+    fn consume(&mut self, token_type: TokenType, error_msg: &str) -> Result<'a, &'a Token<'a>> {
         if self.check(&token_type) {
             Ok(self.advance())
         } else {
             // TODO: Actually handle this
-            Err(ParseError::new(
-                self.current(),
-                format!(
-                    "expected: {}, found: {}",
-                    token_type,
-                    self.current().token_type
-                ),
-            ))
+            Err(ParseError::new(self.previous(), error_msg.to_owned()))
         }
     }
 
-    pub fn parse(&mut self) -> ParseResult<Vec<Expr<'a>>> {
-        let mut exprs: Vec<Expr> = Vec::with_capacity(10_000_000);
+    pub fn parse(&mut self) -> Result<'a, Vec<Stmt<'a>>> {
+        let mut stmts: Vec<Stmt> = Vec::with_capacity(10_000_000);
         while !self.at_end() {
-            let expr = self.expression()?;
-            exprs.push(expr);
-            self.consume(TokenType::SemiColon)?;
+            let stmt = self.declaration()?;
+            stmts.push(stmt);
         }
-        Ok(exprs)
+        Ok(stmts)
     }
 
-    fn expression(&mut self) -> ParseResult<Expr<'a>> {
-        self.ternary()
+    fn declaration(&mut self) -> Result<'a, Stmt<'a>> {
+        let token = self.current();
+        match token.token_type {
+            TokenType::Var => {
+                self.advance();
+                self.var_declaration()
+            }
+            _ => self.statement(),
+        }
     }
 
-    fn ternary(&mut self) -> ParseResult<Expr<'a>> {
+    fn var_declaration(&mut self) -> Result<'a, Stmt<'a>> {
+        let identifier = self.consume(
+            TokenType::Identifier,
+            "Expected an identifier after 'var' keyword",
+        )?;
+        let stmt = match self.current().token_type {
+            TokenType::Equal => {
+                self.advance();
+                let expr = self.expression()?;
+                Stmt::variable(identifier, Some(expr))
+            }
+            _ => Stmt::variable(identifier, None),
+        };
+
+        self.consume(
+            TokenType::SemiColon,
+            "expected ';' after variable declaration",
+        )?;
+
+        Ok(stmt)
+    }
+
+    fn statement(&mut self) -> Result<'a, Stmt<'a>> {
+        let token = self.current();
+        match token.token_type {
+            TokenType::Print => {
+                self.advance();
+                let expr = self.expression()?;
+                self.consume(TokenType::SemiColon, "expected ';' after print statement")?;
+                Ok(Stmt::print(expr))
+            }
+            TokenType::LeftBrace => {
+                self.advance();
+                let mut stmts = vec![];
+                loop {
+                    // Look for the closing brace,
+                    // if not, read a declaration.
+                    let token = self.current();
+                    match token.token_type {
+                        TokenType::RightBrace => break,
+                        TokenType::EOF => break,
+                        _ => {
+                            let stmt = self.declaration()?;
+                            stmts.push(stmt);
+                        }
+                    }
+                }
+                self.consume(TokenType::RightBrace, "Expected closing '}'")?;
+                Ok(Stmt::block(stmts))
+            }
+            _ => {
+                let expr = self.expression()?;
+                self.consume(TokenType::SemiColon, "expected ';' after a statement 2")?;
+                Ok(Stmt::expr(expr))
+            }
+        }
+    }
+
+    fn expression(&mut self) -> Result<'a, Expr<'a>> {
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<'a, Expr<'a>> {
+        let identifier = self.ternary()?;
+        let token = self.current();
+        match token.token_type {
+            TokenType::Equal => match identifier {
+                Expr::Variable { name } => {
+                    self.advance();
+                    let r_expr = self.assignment()?;
+                    let expr = Expr::assignment(name, r_expr);
+                    Ok(expr)
+                }
+                _ => Err(ParseError::new(
+                    token,
+                    "Invalid assignment target".to_owned(),
+                )),
+            },
+            _ => Ok(identifier),
+        }
+    }
+
+    fn ternary(&mut self) -> Result<'a, Expr<'a>> {
         let root = self.equality()?;
         let token = self.current();
         match token.token_type {
             TokenType::Qmark => {
                 self.advance();
                 let left_operand = self.equality()?;
-                self.consume(TokenType::Colon)?;
+                self.consume(TokenType::Colon, "Expected ':' after ternary operator '?'")?;
                 let right_operand = self.ternary()?;
                 let expr = Expr::ternary(root, left_operand, right_operand);
                 Ok(expr)
@@ -80,7 +161,7 @@ impl<'a> RDParser<'a> {
         }
     }
 
-    fn equality(&mut self) -> ParseResult<Expr<'a>> {
+    fn equality(&mut self) -> Result<'a, Expr<'a>> {
         let mut left = self.comparison()?;
         loop {
             let token = self.current();
@@ -96,7 +177,7 @@ impl<'a> RDParser<'a> {
         }
     }
 
-    fn comparison(&mut self) -> ParseResult<Expr<'a>> {
+    fn comparison(&mut self) -> Result<'a, Expr<'a>> {
         let mut left = self.term()?;
         loop {
             let token = self.current();
@@ -115,7 +196,7 @@ impl<'a> RDParser<'a> {
         }
     }
 
-    fn term(&mut self) -> ParseResult<Expr<'a>> {
+    fn term(&mut self) -> Result<'a, Expr<'a>> {
         let mut left = self.factor()?;
         loop {
             let token = self.current();
@@ -131,7 +212,7 @@ impl<'a> RDParser<'a> {
         }
     }
 
-    fn factor(&mut self) -> ParseResult<Expr<'a>> {
+    fn factor(&mut self) -> Result<'a, Expr<'a>> {
         let mut left = self.unary()?;
         loop {
             let token = self.current();
@@ -147,7 +228,7 @@ impl<'a> RDParser<'a> {
         }
     }
 
-    fn unary(&mut self) -> ParseResult<Expr<'a>> {
+    fn unary(&mut self) -> Result<'a, Expr<'a>> {
         let token = self.current();
         match token.token_type {
             TokenType::Bang | TokenType::Minus => {
@@ -160,7 +241,7 @@ impl<'a> RDParser<'a> {
         }
     }
 
-    fn primary(&mut self) -> ParseResult<Expr<'a>> {
+    fn primary(&mut self) -> Result<'a, Expr<'a>> {
         let token = self.current();
         let expr = match token.token_type {
             TokenType::False
@@ -174,8 +255,12 @@ impl<'a> RDParser<'a> {
             TokenType::LeftParen => {
                 self.advance();
                 let expr = self.expression()?;
-                self.consume(TokenType::RightParen)?;
+                self.consume(TokenType::RightParen, "Mismatched parentheses")?;
                 Ok(Expr::grouping(expr))
+            }
+            TokenType::Identifier => {
+                self.advance();
+                Ok(Expr::variable(token))
             }
             _ => Err(ParseError::new(
                 token,
@@ -183,5 +268,19 @@ impl<'a> RDParser<'a> {
             )),
         };
         expr
+    }
+}
+
+impl<'a> Iterator for RDParser<'a> {
+    type Item = Stmt<'a>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current().token_type != TokenType::EOF {
+            match self.statement() {
+                Ok(x) => Some(x),
+                Err(_) => None,
+            }
+        } else {
+            None
+        }
     }
 }

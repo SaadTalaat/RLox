@@ -1,3 +1,3 @@
 use super::error::ParseError;
 
-pub type Result<T> = std::result::Result<T, ParseError>;
+pub type Result<'a, T> = std::result::Result<T, ParseError<'a>>;

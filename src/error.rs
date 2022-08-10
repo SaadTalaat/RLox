@@ -1,4 +1,4 @@
-use super::lex;
+use super::{interpret, lex, parse};
 use std::error;
 use std::fmt::{self, Display, Formatter};
 use std::io;
@@ -26,8 +26,20 @@ impl From<fmt::Error> for Error {
     }
 }
 
-impl From<lex::error::Error<'_>> for Error {
-    fn from(other: lex::error::Error) -> Error {
+impl From<lex::LexicalError<'_>> for Error {
+    fn from(other: lex::LexicalError) -> Error {
+        Error(format!("{}", other))
+    }
+}
+
+impl From<parse::ParseError<'_>> for Error {
+    fn from(other: parse::ParseError) -> Error {
+        Error(format!("{}", other))
+    }
+}
+
+impl From<interpret::RuntimeError<'_>> for Error {
+    fn from(other: interpret::RuntimeError) -> Error {
         Error(format!("{}", other))
     }
 }
