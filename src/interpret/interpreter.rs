@@ -121,6 +121,8 @@ impl<'a> Interpreter<'a> {
                     TokenType::Slash => Self::divide(operator, &left_value, &right_value),
                     // Addition
                     TokenType::Plus => Self::add(operator, &left_value, &right_value),
+                    // Modulo
+                    TokenType::Modulo => Self::modulo(operator, &left_value, &right_value),
                     // GreaterThan >
                     TokenType::GreaterThan
                     | TokenType::GreaterThanEq
@@ -232,6 +234,25 @@ impl<'a> Interpreter<'a> {
             _ => Err(RuntimeError::new(
                 op,
                 format!("Cannot multiply {} by {}, mismatched types", left, right),
+            )),
+        }
+    }
+
+    fn modulo<'b>(
+        op: &'b Token,
+        left: &LiteralValue,
+        right: &LiteralValue,
+    ) -> Result<'b, LiteralValue<'b>> {
+        match (left, right) {
+            (LiteralValue::Number(l), LiteralValue::Number(r)) if *r != 0.0 => {
+                Ok(LiteralValue::Number(l % r))
+            }
+            (_, LiteralValue::Number(r)) if *r == 0.0 => {
+                Err(RuntimeError::new(op, format!("Zero division")))
+            }
+            _ => Err(RuntimeError::new(
+                op,
+                format!("Cannot modulo {} by {}, mismatched types", left, right),
             )),
         }
     }
