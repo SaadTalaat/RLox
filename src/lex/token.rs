@@ -70,7 +70,6 @@ pub struct Token<'a> {
     pub token_type: TokenType,
     pub value: LiteralValue<'a>,
     lexeme: &'a str,
-    pub source: &'a str,
     pub line_str: &'a str,
     pub line_index: usize,
     pub offset: usize,
@@ -81,7 +80,6 @@ impl<'a> Token<'a> {
     pub fn new(
         token_type: TokenType,
         lexeme: &'a [u8],
-        source: &'a str,
         line_str: &'a str,
         line_index: usize,
         offset: usize,
@@ -92,7 +90,6 @@ impl<'a> Token<'a> {
         Token {
             token_type,
             lexeme,
-            source,
             line_str,
             line_index,
             offset,

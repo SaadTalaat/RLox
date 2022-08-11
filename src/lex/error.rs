@@ -56,7 +56,7 @@ impl<'a> Display for LexicalError<'a> {
             let indentation: Vec<u8> = (0..indent_size).map(|_| b' ').collect();
             let indentation = std::str::from_utf8(&indentation).unwrap();
             format!(
-                "{}^ {}: {}",
+                "{}^ '{}': {}",
                 indentation, self.illegal_literal, self.message
             )
         };

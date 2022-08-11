@@ -31,7 +31,7 @@ impl<'a> Display for ParseError<'a> {
             let indent_size = self.token.offset + line_prefix.len();
             let indentation: Vec<u8> = (0..indent_size).map(|_| b' ').collect();
             let indentation = std::str::from_utf8(&indentation).unwrap();
-            format!("{}^ {}: {}", indentation, self.token.lexeme(), self.message)
+            format!("{}^ '{}': {}", indentation, self.token.lexeme(), self.message)
         };
         write!(f, "{}", error_msg)
     }
