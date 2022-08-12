@@ -169,7 +169,7 @@ impl RDParser {
             | TokenType::True
             | TokenType::Nil
             | TokenType::Number
-            | TokenType::String => Ok((Expr::literal(&token.value), 1)),
+            | TokenType::String => Ok((Expr::literal(token.value.clone()), 1)),
             TokenType::LeftParen => {
                 let (expr, consumed) = Self::expression(&tokens, cursor + 1)?;
                 Self::expect(&tokens[cursor + consumed + 1], TokenType::RightParen)?;

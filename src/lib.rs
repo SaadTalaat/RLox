@@ -6,20 +6,26 @@ pub mod parse;
 
 pub use error::{Error, Result};
 use interpret::Interpreter;
-use lex::Scanner;
+use lex::Lexer;
 pub use literal::LiteralValue;
 use parse::{ImmutableRDParser, RDParser};
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read, Write};
 
 fn run(source: &str) -> Result<()> {
-    let now = std::time::Instant::now();
     println!(".");
-    let tokens = Scanner::scan(source)?;
-    //let mut scanner = ScannerIter::new(source.as_bytes());
-    //let tokens = scanner.scan()?;
+    let now = std::time::Instant::now();
+    //let results = Scanner::scan(source);
+    let mut results = Lexer::new(source);
+    let mut tokens = vec![];
+    for token in results {
+        match token {
+            Ok(t) => tokens.push(t),
+            Err(e) => (),
+        }
+    }
     let time_1 = now.elapsed().as_millis();
-    //println!("Scanning took: {} ms ", now.elapsed().as_millis());
+    println!("Scanning took: {} ms ", now.elapsed().as_millis());
     let now = std::time::Instant::now();
     let mut parser = RDParser::new(&tokens);
     println!(".");
@@ -37,8 +43,8 @@ fn run(source: &str) -> Result<()> {
     for stmt in stmts.iter() {
         let result = interpreter
             .interpret(&stmt)
-            //.unwrap_or(LiteralValue::NoValue);
-            .map_err(|err| println!("{}", err));
+            .unwrap_or(LiteralValue::NoValue);
+        //.map_err(|err| println!("{}", err));
     }
 
     let time_3 = now.elapsed().as_millis();

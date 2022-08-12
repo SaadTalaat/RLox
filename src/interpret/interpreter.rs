@@ -1,5 +1,5 @@
 use super::env::Environment;
-use super::error::RuntimeError;
+use super::error::RuntimeCtrl;
 use super::result::Result;
 use crate::lex::{Token, TokenType};
 use crate::parse::{Expr, Stmt};
@@ -51,6 +51,33 @@ impl<'a> Interpreter<'a> {
                 }
                 Ok(LiteralValue::NoValue)
             }
+            Stmt::If {
+                condition,
+                if_body,
+                maybe_else_body,
+            } => {
+                let condition_value = self.evaluate(condition)?;
+                if Self::is_truthy(&condition_value)? {
+                    self.interpret(if_body)
+                } else if let Some(else_body) = maybe_else_body {
+                    self.interpret(else_body)
+                } else {
+                    Ok(LiteralValue::NoValue)
+                }
+            }
+            Stmt::While { condition, body } => {
+                while Self::is_truthy(&self.evaluate(condition)?)? {
+                    let result = self.interpret(body);
+                    if let Err(RuntimeCtrl::BreakEmitted) = result {
+                        break;
+                    } else if let Err(RuntimeCtrl::ContinueEmitted) = result {
+                        continue;
+                    }
+                }
+                Ok(LiteralValue::NoValue)
+            }
+            Stmt::Break => Err(RuntimeCtrl::BreakEmitted),
+            Stmt::Continue => Err(RuntimeCtrl::ContinueEmitted),
         }
     }
 
@@ -60,7 +87,7 @@ impl<'a> Interpreter<'a> {
             // Variable names
             // 1 + a
             Expr::Variable { name } => match self.env.read(name)? {
-                LiteralValue::NoValue => Err(RuntimeError::new(
+                LiteralValue::NoValue => Err(RuntimeCtrl::new(
                     name,
                     "Cannot access a variable before it's been initalized".to_owned(),
                 )),
@@ -86,7 +113,7 @@ impl<'a> Interpreter<'a> {
                         Ok(LiteralValue::Number(-n))
                     } else {
                         // TODO: replace with error
-                        Err(RuntimeError::new(
+                        Err(RuntimeCtrl::new(
                             operator,
                             "Cannot negate non-numeric literals".to_owned(),
                         ))
@@ -97,7 +124,7 @@ impl<'a> Interpreter<'a> {
                     let truthy = Self::is_truthy(&value)?;
                     Ok(LiteralValue::Boolean(!truthy))
                 }
-                _ => Err(RuntimeError::new(
+                _ => Err(RuntimeCtrl::new(
                     operator,
                     format!("Illegal unary operation: {}", operator.token_type),
                 )),
@@ -114,13 +141,20 @@ impl<'a> Interpreter<'a> {
 
                 match operator.token_type {
                     // Subtract
-                    TokenType::Minus => Self::subtract(operator, &left_value, &right_value),
+                    TokenType::Minus | TokenType::MinusMinus => {
+                        Self::subtract(operator, &left_value, &right_value)
+                    }
                     // Multiply
                     TokenType::Star => Self::multiply(operator, &left_value, &right_value),
                     // Division
                     TokenType::Slash => Self::divide(operator, &left_value, &right_value),
                     // Addition
-                    TokenType::Plus => Self::add(operator, &left_value, &right_value),
+                    // TODO: Don't convert unary --/++ to binary expressions to be able
+                    // to return the value after or before the operation, depending on
+                    // the operator being a prefix or postfix
+                    TokenType::Plus | TokenType::PlusPlus => {
+                        Self::add(operator, &left_value, &right_value)
+                    }
                     // Modulo
                     TokenType::Modulo => Self::modulo(operator, &left_value, &right_value),
                     // GreaterThan >
@@ -130,10 +164,36 @@ impl<'a> Interpreter<'a> {
                     | TokenType::LessThanEq
                     | TokenType::EqEq
                     | TokenType::BangEq => Self::compare(operator, &left_value, &right_value),
-                    _ => Err(RuntimeError::new(
+                    _ => Err(RuntimeCtrl::new(
                         operator,
                         format!("Illegal binary operation: {}", operator.token_type),
                     )),
+                }
+            }
+            Expr::Logical {
+                left,
+                operator,
+                right,
+            } => {
+                let left_value = self.evaluate(left)?;
+                let left_is_truthy = Self::is_truthy(&left_value)?;
+                match operator.token_type {
+                    TokenType::And => {
+                        if left_is_truthy {
+                            let right_value = self.evaluate(right)?;
+                            Ok(right_value)
+                        } else {
+                            Ok(left_value)
+                        }
+                    }
+                    _ => {
+                        if !left_is_truthy {
+                            let right_value = self.evaluate(right)?;
+                            Ok(right_value)
+                        } else {
+                            Ok(left_value)
+                        }
+                    }
                 }
             }
 
@@ -184,7 +244,7 @@ impl<'a> Interpreter<'a> {
                 Ok(LiteralValue::Str(format!("{}{}", l, r)))
             }
 
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeCtrl::new(
                 op,
                 format!("Cannot add {} to a {}, mismatched types", left, right),
             )),
@@ -198,7 +258,7 @@ impl<'a> Interpreter<'a> {
     ) -> Result<'b, LiteralValue<'b>> {
         match (left, right) {
             (LiteralValue::Number(l), LiteralValue::Number(r)) => Ok(LiteralValue::Number(l - r)),
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeCtrl::new(
                 op,
                 format!("Cannot subtract a '{}' from a '{}' literal", left, right),
             )),
@@ -215,9 +275,9 @@ impl<'a> Interpreter<'a> {
                 Ok(LiteralValue::Number(l / r))
             }
             (_, LiteralValue::Number(r)) if *r == 0.0 => {
-                Err(RuntimeError::new(op, format!("Zero division")))
+                Err(RuntimeCtrl::new(op, format!("Zero division")))
             }
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeCtrl::new(
                 op,
                 format!("Cannot divide {} by {}, mismatched types", left, right),
             )),
@@ -231,7 +291,7 @@ impl<'a> Interpreter<'a> {
     ) -> Result<'b, LiteralValue<'b>> {
         match (left, right) {
             (LiteralValue::Number(l), LiteralValue::Number(r)) => Ok(LiteralValue::Number(l * r)),
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeCtrl::new(
                 op,
                 format!("Cannot multiply {} by {}, mismatched types", left, right),
             )),
@@ -248,11 +308,25 @@ impl<'a> Interpreter<'a> {
                 Ok(LiteralValue::Number(l % r))
             }
             (_, LiteralValue::Number(r)) if *r == 0.0 => {
-                Err(RuntimeError::new(op, format!("Zero division")))
+                Err(RuntimeCtrl::new(op, format!("Zero division")))
             }
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeCtrl::new(
                 op,
                 format!("Cannot modulo {} by {}, mismatched types", left, right),
+            )),
+        }
+    }
+
+    fn increment<'b>(
+        op: &'b Token,
+        value: &LiteralValue,
+        step: f64,
+    ) -> Result<'b, LiteralValue<'b>> {
+        match value {
+            LiteralValue::Number(l) => Ok(LiteralValue::Number(l + step)),
+            _ => Err(RuntimeCtrl::new(
+                op,
+                format!("Cannot increment/decrement {}, mismatched types", value),
             )),
         }
     }
@@ -269,7 +343,7 @@ impl<'a> Interpreter<'a> {
             TokenType::LessThanEq => Ok(LiteralValue::Boolean(left <= right)),
             TokenType::EqEq => Ok(LiteralValue::Boolean(left == right)),
             TokenType::BangEq => Ok(LiteralValue::Boolean(left != right)),
-            _ => Err(RuntimeError::new(
+            _ => Err(RuntimeCtrl::new(
                 op,
                 format!("Cannot compare operands: {} {} {}", left, op, right),
             )),

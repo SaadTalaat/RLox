@@ -29,6 +29,8 @@ pub enum TokenType {
     GreaterThanEq,
     LessThan,
     LessThanEq,
+    MinusMinus,
+    PlusPlus,
 
     // Literals
     Identifier,
@@ -51,6 +53,8 @@ pub enum TokenType {
     This,
     Var,
     Class,
+    Break,
+    Continue,
     // Function Body function(param: int) => { body }
     EqGreaterThan,
 

@@ -9,7 +9,7 @@ pub trait ExprHandler<T> {
 #[derive(Debug)]
 pub enum Expr<'a> {
     Literal {
-        value: &'a LiteralValue<'a>,
+        value: LiteralValue<'a>,
     },
     Variable {
         name: &'a Token<'a>,
@@ -28,6 +28,11 @@ pub enum Expr<'a> {
         operator: &'a Token<'a>,
         right: Box<Expr<'a>>,
     },
+    Logical {
+        left: Box<Expr<'a>>,
+        operator: &'a Token<'a>,
+        right: Box<Expr<'a>>,
+    },
     Grouping {
         expr: Box<Expr<'a>>,
     },
@@ -42,7 +47,7 @@ impl<'a> Expr<'a> {
         handler.handle(self)
     }
 
-    pub fn literal(value: &'a LiteralValue) -> Expr<'a> {
+    pub fn literal(value: LiteralValue<'a>) -> Expr<'a> {
         Expr::Literal { value }
     }
 
@@ -85,6 +90,14 @@ impl<'a> Expr<'a> {
             value: Box::new(value),
         }
     }
+
+    pub fn logical(left: Expr<'a>, operator: &'a Token, right: Expr<'a>) -> Expr<'a> {
+        Expr::Logical {
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        }
+    }
 }
 
 impl<'a> Display for Expr<'a> {
@@ -94,6 +107,13 @@ impl<'a> Display for Expr<'a> {
                 write!(f, "({} ? {} : {})", root, left, right)
             }
             Expr::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                write!(f, "({} {} {})", operator, left, right)
+            }
+            Expr::Logical {
                 left,
                 operator,
                 right,
@@ -129,6 +149,17 @@ pub enum Stmt<'a> {
     Block {
         statements: Vec<Stmt<'a>>,
     },
+    If {
+        condition: Expr<'a>,
+        if_body: Box<Stmt<'a>>,
+        maybe_else_body: Option<Box<Stmt<'a>>>,
+    },
+    While {
+        condition: Expr<'a>,
+        body: Box<Stmt<'a>>,
+    },
+    Break,
+    Continue,
 }
 
 impl<'a> Stmt<'a> {
@@ -146,6 +177,29 @@ impl<'a> Stmt<'a> {
 
     pub fn block(statements: Vec<Stmt<'a>>) -> Self {
         Self::Block { statements }
+    }
+
+    pub fn if_(condition: Expr<'a>, if_body: Stmt<'a>, maybe_else_body: Option<Stmt<'a>>) -> Self {
+        Self::If {
+            condition,
+            if_body: Box::new(if_body),
+            maybe_else_body: maybe_else_body.map(|body| Box::new(body)),
+        }
+    }
+
+    pub fn while_(condition: Expr<'a>, body: Stmt<'a>) -> Self {
+        Self::While {
+            condition,
+            body: Box::new(body),
+        }
+    }
+
+    pub fn break_() -> Self {
+        Self::Break
+    }
+
+    pub fn continue_() -> Self {
+        Self::Continue
     }
 }
 
@@ -165,6 +219,26 @@ impl<'a> Display for Stmt<'a> {
             Stmt::Block { statements } => {
                 write!(f, "{{ block (statements {}) }}", statements.len())
             }
+            Stmt::If {
+                condition,
+                if_body,
+                maybe_else_body,
+            } => {
+                if let Some(else_body) = maybe_else_body {
+                    write!(
+                        f,
+                        "if ({})\n\t{}\nelse\n\t{}",
+                        condition, if_body, else_body
+                    )
+                } else {
+                    write!(f, "if ({})\n\t{}", condition, if_body)
+                }
+            }
+            Stmt::While { condition, body } => {
+                write!(f, "while ({})\n\t{}", condition, body)
+            }
+            Stmt::Break => write!(f, "break;"),
+            Stmt::Continue => write!(f, "continue;"),
         }
     }
 }

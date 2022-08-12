@@ -1,5 +1,5 @@
 use super::Result;
-use super::RuntimeError;
+use super::RuntimeCtrl;
 use crate::lex::Token;
 use crate::LiteralValue;
 use std::collections::HashMap;
@@ -32,7 +32,7 @@ impl<'a> Environment<'a> {
                 return Ok(v);
             }
         }
-        Err(RuntimeError::new(
+        Err(RuntimeCtrl::new(
             token,
             format!("Undeclared variable {}", key),
         ))
@@ -50,13 +50,13 @@ impl<'a> Environment<'a> {
             // Just a cast to index into maps
             let cursor = idx as usize;
             if self.maps[cursor].contains_key(key) {
-                self.maps[last_idx].insert(key, value);
+                self.maps[cursor].insert(key, value);
                 return Ok(self.maps[cursor].get(key).unwrap());
             }
             idx -= 1;
         }
 
-        Err(RuntimeError::new(
+        Err(RuntimeCtrl::new(
             token,
             format!("Undeclared variable {}", key),
         ))

@@ -38,8 +38,8 @@ impl From<parse::ParseError<'_>> for Error {
     }
 }
 
-impl From<interpret::RuntimeError<'_>> for Error {
-    fn from(other: interpret::RuntimeError) -> Error {
+impl From<interpret::RuntimeCtrl<'_>> for Error {
+    fn from(other: interpret::RuntimeCtrl) -> Error {
         Error(format!("{}", other))
     }
 }

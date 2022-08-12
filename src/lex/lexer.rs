@@ -65,6 +65,8 @@ impl<'a> Lexer<'a> {
             "super" => TokenType::Super,
             "var" => TokenType::Var,
             "class" => TokenType::Class,
+            "break" => TokenType::Break,
+            "continue" => TokenType::Continue,
             _ => TokenType::Identifier,
         };
         return Ok(token_type);
@@ -304,8 +306,14 @@ impl<'a> Lexer<'a> {
             '}' => Ok(self.get_token(TokenType::RightBrace, 1)),
             ',' => Ok(self.get_token(TokenType::Comma, 1)),
             '.' => Ok(self.get_token(TokenType::Dot, 1)),
-            '-' => Ok(self.get_token(TokenType::Minus, 1)),
-            '+' => Ok(self.get_token(TokenType::Plus, 1)),
+            '-' => match self.look_ahead() {
+                '-' => Ok(self.get_token(TokenType::MinusMinus, 2)),
+                _ => Ok(self.get_token(TokenType::Minus, 1)),
+            },
+            '+' => match self.look_ahead() {
+                '+' => Ok(self.get_token(TokenType::PlusPlus, 2)),
+                _ => Ok(self.get_token(TokenType::Plus, 1)),
+            },
             ';' => Ok(self.get_token(TokenType::SemiColon, 1)),
             '*' => Ok(self.get_token(TokenType::Star, 1)),
             '%' => Ok(self.get_token(TokenType::Modulo, 1)),
