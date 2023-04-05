@@ -1,0 +1,6 @@
+[workspace]
+members = [
+"rlox",
+"wasm-lox",
+"wasi-lox",
+]
