@@ -126,15 +126,24 @@ impl TreeWalkInterpreter {
                 operator,
                 right,
             } => self.evaluate_logical(left, operator, right),
-            Expr::Var { name } => match self.env.read(&name) {
+            Expr::Var { name, depth } => match self.env.read_at(&name, *depth) {
                 // Return a copy of the stored value.
                 Ok(v) => Ok(v.clone()),
                 Err(e) => Err(e),
             },
-            Expr::Assign { name, expr } => {
+            Expr::Lambda { params, body } => {
+                let lambda = LoxValue::F(Function::new(
+                    "lambda".to_owned(),
+                    params.clone(),
+                    *body.clone(),
+                    self.env.clone(),
+                ));
+                Ok(lambda)
+            }
+            Expr::Assign { name, expr, depth } => {
                 let r_value = self.evaluate(expr)?;
                 // Return a copy of the assigned value
-                Ok(self.env.assign(name, r_value)?)
+                Ok(self.env.assign_at(name, r_value, *depth)?)
             }
             Expr::Call { callee, args } => self.evaluate_call(callee, args),
             _ => Err(RuntimeError::new(RuntimeErrorKind::UnrecognizedExpression)),

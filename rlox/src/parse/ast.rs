@@ -212,10 +212,16 @@ pub enum Expr {
     },
     Var {
         name: String,
+        depth: usize,
+    },
+    Lambda {
+        params: Vec<String>,
+        body: Box<Stmt>,
     },
     Assign {
         name: String,
         expr: Box<Expr>,
+        depth: usize,
     },
 }
 
@@ -269,13 +275,29 @@ impl Expr {
     }
 
     pub fn variable(name: String) -> Self {
-        Self::Var { name }
+        Self::Var { name, depth: 0 }
     }
 
+    pub fn lambda(params: Vec<String>, body: Stmt) -> Self {
+        Self::Lambda {
+            params,
+            body: Box::new(body),
+        }
+    }
     pub fn assign(name: String, expr: Expr) -> Self {
         Self::Assign {
             name,
             expr: Box::new(expr),
+            depth: 0,
+        }
+    }
+
+    pub fn set_depth(&mut self, new_depth: usize) {
+        match self {
+            Self::Var { depth, .. } | Self::Assign { depth, .. } => {
+                *depth = new_depth;
+            }
+            _ => panic!("cannot set depth to non variable referencing expr"),
         }
     }
 }
@@ -299,8 +321,9 @@ impl Display for Expr {
                 right,
             } => write!(formatter, "({} {} {})", operator, left, right),
             Self::Grouping { expr } => write!(formatter, "(group {})", expr),
-            Self::Var { name } => write!(formatter, "{}", name),
-            Self::Assign { name, expr } => write!(formatter, "{} = {}", name, expr),
+            Self::Var { name, .. } => write!(formatter, "{}", name),
+            Self::Lambda { params, .. } => write!(formatter, "<lambda ({} params)", params.len()),
+            Self::Assign { name, expr, .. } => write!(formatter, "{} = {}", name, expr),
             Self::Call { callee, args } => write!(formatter, "{}(nargs {})", callee, args.len()),
         }
     }

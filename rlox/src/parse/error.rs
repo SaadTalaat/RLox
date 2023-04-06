@@ -24,6 +24,7 @@ pub enum ParseErrorKind {
     UnexpectedToken,
     // Fatal error
     FatalError,
+    RecursiveInitializer,
 }
 
 #[derive(Debug)]

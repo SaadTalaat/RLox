@@ -301,7 +301,7 @@ impl<'a> RDParser<'a> {
         let token = self.current();
         match token.token_type {
             TokenType::Equal => match identifier {
-                Expr::Var { name } => {
+                Expr::Var { name, .. } => {
                     self.step();
                     let r_value = self.assignment()?;
                     Ok(Expr::assign(name, r_value))
@@ -442,6 +442,36 @@ impl<'a> RDParser<'a> {
                 self.step();
                 let expr = self.unary()?;
                 Ok(Expr::unary(operator, expr))
+            }
+            _ => self.lambda(),
+        }
+    }
+
+    fn lambda(&mut self) -> Result<Expr> {
+        let token = self.current();
+        match token.token_type {
+            TokenType::Fun => {
+                self.step();
+                self.consume(TokenType::LeftParen, ParseErrorKind::IllegalFunctionDecl)?;
+                let token = self.current();
+                let mut params: Vec<String> = vec![];
+                if TokenType::RightParen != token.token_type {
+                    loop {
+                        self.consume(TokenType::Identifier, ParseErrorKind::ParamExpected)?;
+                        let param = self.code.get_identifier(self.previous());
+                        let token = self.current();
+                        params.push(param);
+                        if TokenType::Comma == token.token_type {
+                            self.step();
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                self.consume(TokenType::RightParen, ParseErrorKind::UnbalancedParentheses);
+                // Parse definition block
+                let body = self.block()?;
+                Ok(Expr::lambda(params, body))
             }
             _ => self.call(),
         }

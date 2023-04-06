@@ -23,23 +23,30 @@ impl EnvElement {
         self.map.insert(key.to_owned(), value);
     }
 
-    pub fn read(&self, key: &str) -> Result<LoxValue> {
-        let maybe_val = self.map.get(key);
-        if let Some(val) = maybe_val {
+    pub fn read_at(&self, key: &str, depth: i32) -> Result<LoxValue> {
+        if depth > 0 {
+            if let Some(p) = &self.parent {
+                p.borrow().read_at(key, depth - 1)
+            } else {
+                Err(RuntimeError::new(RuntimeErrorKind::UndeclaredVariable))
+            }
+        } else if let Some(val) = self.map.get(key) {
             Ok(val.clone())
-        } else if let Some(ref p) = self.parent {
-            p.borrow().read(key)
         } else {
             Err(RuntimeError::new(RuntimeErrorKind::UndeclaredVariable))
         }
     }
 
-    pub fn assign(&mut self, key: &str, value: LoxValue) -> Result<LoxValue> {
-        if self.map.contains_key(key) {
+    pub fn assign_at(&mut self, key: &str, value: LoxValue, depth: i32) -> Result<LoxValue> {
+        if depth > 0 {
+            if let Some(p) = &self.parent {
+                p.borrow_mut().assign_at(key, value, depth - 1)
+            } else {
+                Err(RuntimeError::new(RuntimeErrorKind::UndeclaredVariable))
+            }
+        } else if self.map.contains_key(key) {
             self.map.insert(key.to_owned(), value);
             Ok(self.map.get(key).unwrap().clone())
-        } else if let Some(ref p) = self.parent {
-            p.borrow_mut().assign(key, value)
         } else {
             Err(RuntimeError::new(RuntimeErrorKind::UndeclaredVariable))
         }
@@ -65,12 +72,12 @@ impl Environment {
         }
     }
 
-    pub fn read(&self, key: &str) -> Result<LoxValue> {
-        self.elem.borrow().read(key)
+    pub fn read_at(&self, key: &str, depth: usize) -> Result<LoxValue> {
+        self.elem.borrow().read_at(key, depth as i32)
     }
 
-    pub fn assign(&self, key: &str, value: LoxValue) -> Result<LoxValue> {
-        self.elem.borrow_mut().assign(key, value)
+    pub fn assign_at(&self, key: &str, value: LoxValue, depth: usize) -> Result<LoxValue> {
+        self.elem.borrow_mut().assign_at(key, value, depth as i32)
     }
 
     pub fn define(&self, key: &str, value: LoxValue) {

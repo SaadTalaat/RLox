@@ -4,6 +4,7 @@ use rlox::code::Code;
 use rlox::interpret::TreeWalkInterpreter;
 use rlox::lex::Lexer;
 use rlox::parse::RDParser;
+use rlox::parse::Resolver;
 use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read, Write};
@@ -44,6 +45,9 @@ fn run(source: String) {
             }
         }
     }
+
+    let mut resolver = Resolver::new();
+    resolver.resolve_stmts(&mut exprs).unwrap();
     let mut interpreter = TreeWalkInterpreter::new();
     println!("====== Running ======");
     interpreter.run(exprs);
