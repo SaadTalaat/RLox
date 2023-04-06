@@ -5,23 +5,19 @@ use super::Result;
 use crate::callable::Function;
 use crate::parse::{Expr, Operator, Stmt};
 use crate::LoxValue;
-use std::cell::RefCell;
-use std::rc::Rc;
 
 pub struct TreeWalkInterpreter {
-    pub env: Vec<Rc<RefCell<Environment>>>,
+    pub env: Environment,
 }
 
 impl TreeWalkInterpreter {
     pub fn new() -> Self {
         let globals = Globals::get();
-        let mut env = Environment::new();
+        let env = Environment::new();
         for f in globals.into_iter() {
             env.define(&f.name.clone(), LoxValue::NF(f));
         }
-        Self {
-            env: vec![Rc::new(RefCell::new(env))],
-        }
+        Self { env }
     }
     pub fn run(&mut self, stmts: Vec<Stmt>) {
         for stmt in stmts.into_iter() {
@@ -31,19 +27,6 @@ impl TreeWalkInterpreter {
             }
             result.unwrap();
         }
-    }
-
-    pub fn push(&mut self, env: &Rc<RefCell<Environment>>) {
-        self.env.push(Rc::clone(env));
-    }
-
-    pub fn pop(&mut self) {
-        self.env.pop();
-    }
-
-    fn env(&self) -> Rc<RefCell<Environment>> {
-        let last = self.env.get(self.env.len() - 1).unwrap();
-        Rc::clone(last)
     }
 
     pub fn interpret(&mut self, stmt: &Stmt) -> Result<LoxValue> {
@@ -58,20 +41,21 @@ impl TreeWalkInterpreter {
                 init: Some(expr),
             } => {
                 let r_value = self.evaluate(expr)?;
-                self.env().borrow_mut().define(name, r_value);
+                self.env.define(name, r_value);
                 Ok(LoxValue::NoValue)
             }
             Stmt::Var { name, .. } => {
-                self.env().borrow_mut().define(name, LoxValue::Nil);
+                self.env.define(name, LoxValue::Nil);
                 Ok(LoxValue::NoValue)
             }
             Stmt::Block(stmts) => {
-                self.env().borrow_mut().push();
-                let mut result = LoxValue::NoValue;
+                let tmp_env = self.env.clone();
+                let new_env = self.env.push();
+                self.env = new_env;
                 for stmt in stmts.into_iter() {
-                    result = self.interpret(stmt)?;
+                    self.interpret(stmt)?;
                 }
-                self.env().borrow_mut().pop();
+                self.env = tmp_env;
                 // TODO: How to return value from function body
                 Ok(LoxValue::NoValue)
             }
@@ -109,9 +93,9 @@ impl TreeWalkInterpreter {
                     name.to_owned(),
                     params.clone(),
                     *body.clone(),
-                    &self.env(),
+                    self.env.clone(),
                 ));
-                self.env().borrow_mut().define(&name, func);
+                self.env.define(&name, func);
                 Ok(LoxValue::NoValue)
             }
             Stmt::Return(Some(expr)) => {
@@ -142,7 +126,7 @@ impl TreeWalkInterpreter {
                 operator,
                 right,
             } => self.evaluate_logical(left, operator, right),
-            Expr::Var { name } => match self.env().borrow().read(&name) {
+            Expr::Var { name } => match self.env.read(&name) {
                 // Return a copy of the stored value.
                 Ok(v) => Ok(v.clone()),
                 Err(e) => Err(e),
@@ -150,7 +134,7 @@ impl TreeWalkInterpreter {
             Expr::Assign { name, expr } => {
                 let r_value = self.evaluate(expr)?;
                 // Return a copy of the assigned value
-                Ok(self.env().borrow_mut().assign(name, r_value)?.clone())
+                Ok(self.env.assign(name, r_value)?)
             }
             Expr::Call { callee, args } => self.evaluate_call(callee, args),
             _ => Err(RuntimeError::new(RuntimeErrorKind::UnrecognizedExpression)),

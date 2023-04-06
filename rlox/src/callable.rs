@@ -32,22 +32,17 @@ pub struct Function {
     pub arity: usize,
     params: Vec<String>,
     body: Box<Stmt>,
-    closure: Rc<RefCell<Environment>>,
+    closure: Environment,
 }
 
 impl Function {
-    pub fn new(
-        name: String,
-        params: Vec<String>,
-        body: Stmt,
-        closure: &Rc<RefCell<Environment>>,
-    ) -> Self {
+    pub fn new(name: String, params: Vec<String>, body: Stmt, closure: Environment) -> Self {
         Self {
             name,
             arity: params.len(),
             params,
             body: Box::new(body),
-            closure: Rc::clone(closure),
+            closure: closure,
         }
     }
     pub fn call(
@@ -61,15 +56,14 @@ impl Function {
         if args.len() != self.arity {
             panic!("Core Failure: Function received wrong number of args.");
         }
-        self.closure.borrow_mut().push();
+        let globals = interpreter.env.clone();
+        interpreter.env = self.closure.push();
         let zipped = std::iter::zip(self.params.iter(), args.into_iter());
         for (param, arg) in zipped {
-            self.closure.borrow_mut().define(param, arg);
+            self.closure.define(param, arg);
         }
-        interpreter.push(&self.closure);
         let result = interpreter.interpret(&*self.body);
-        interpreter.env.pop();
-        self.closure.borrow_mut().pop();
+        interpreter.env = globals;
         match result {
             Err(error) => match error.kind {
                 RuntimeErrorKind::RuntimeCtrlReturn(val) => Ok(val),
