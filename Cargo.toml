@@ -2,8 +2,4 @@
 members = [
 "rlox",
 "wasm-lox",
-"wasi-lox",
 ]
-
-#[profile.release]
-#debug = true
