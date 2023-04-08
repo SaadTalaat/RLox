@@ -1,4 +1,5 @@
 mod callable;
+mod class;
 pub mod code;
 pub mod interpret;
 pub mod lex;

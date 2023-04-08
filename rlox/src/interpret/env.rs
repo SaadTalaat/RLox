@@ -23,32 +23,32 @@ impl EnvElement {
         self.map.insert(key.to_owned(), value);
     }
 
-    pub fn read_at(&self, key: &str, depth: i32) -> Result<LoxValue> {
+    pub fn read_at(&self, key: &str, depth: i32) -> Option<LoxValue> {
         if depth > 0 {
             if let Some(p) = &self.parent {
                 p.borrow().read_at(key, depth - 1)
             } else {
-                Err(RuntimeError::new(RuntimeErrorKind::UndeclaredVariable))
+                None
             }
         } else if let Some(val) = self.map.get(key) {
-            Ok(val.clone())
+            Some(val.clone())
         } else {
-            Err(RuntimeError::new(RuntimeErrorKind::UndeclaredVariable))
+            None
         }
     }
 
-    pub fn assign_at(&mut self, key: &str, value: LoxValue, depth: i32) -> Result<LoxValue> {
+    pub fn assign_at(&mut self, key: &str, value: LoxValue, depth: i32) -> Option<LoxValue> {
         if depth > 0 {
             if let Some(p) = &self.parent {
                 p.borrow_mut().assign_at(key, value, depth - 1)
             } else {
-                Err(RuntimeError::new(RuntimeErrorKind::UndeclaredVariable))
+                None
             }
         } else if self.map.contains_key(key) {
             self.map.insert(key.to_owned(), value);
-            Ok(self.map.get(key).unwrap().clone())
+            Some(self.map.get(key).unwrap().clone())
         } else {
-            Err(RuntimeError::new(RuntimeErrorKind::UndeclaredVariable))
+            None
         }
     }
 }
@@ -72,11 +72,11 @@ impl Environment {
         }
     }
 
-    pub fn read_at(&self, key: &str, depth: usize) -> Result<LoxValue> {
+    pub fn read_at(&self, key: &str, depth: usize) -> Option<LoxValue> {
         self.elem.borrow().read_at(key, depth as i32)
     }
 
-    pub fn assign_at(&self, key: &str, value: LoxValue, depth: usize) -> Result<LoxValue> {
+    pub fn assign_at(&self, key: &str, value: LoxValue, depth: usize) -> Option<LoxValue> {
         self.elem.borrow_mut().assign_at(key, value, depth as i32)
     }
 

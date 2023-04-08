@@ -9,7 +9,7 @@ impl Globals {
         let time = SystemTime::now();
         match time.duration_since(UNIX_EPOCH) {
             Ok(duration) => Ok(LoxValue::Number(duration.as_micros() as f64 / 1000.0)),
-            Err(_) => Err(RuntimeError::new(RuntimeErrorKind::SystemTimeError)),
+            Err(_) => panic!("Time went backwads?!"),
         }
     }
 

@@ -1,0 +1,104 @@
+#!/usr/bin/env sh
+
+RUST_BACKTRACE=1
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+GREY='\033[0;37m'
+NC='\033[0m'
+
+msg() {
+  echo "${GREY}$1${NC}"
+}
+
+error_msg() {
+  echo "${RED}$1${NC}"
+}
+
+pass_msg() {
+  echo "${GREEN}$1${NC}"
+}
+
+build() {
+  msg ">> Building interpreter"
+  stderr=$(cargo build --release -p rlox 2>&1 >/dev/null)
+  if [ $? != 0 ]; then
+    echo "$stderr";
+    error_msg "Failed to build interpreter.";
+  fi
+}
+
+print_usage() {
+  usage="Usage: test <cmd>
+  \tlexical:\tlexical analysis tests
+  \tsyntax:\tsyntax analysis tests
+  \tresolution:\ttests resolutions of variables and keywords(return, break..etc)
+  \truntime:\ttests for runtime errors
+  \tall:\truns all tests
+  "
+  echo "$usage"
+}
+
+run_tests() {
+  test_name=$1
+  test_dirname=$2
+  test_errno=$3
+  msg ">> Generating [$test_name] tests @ $test_dirname/all"
+  python3 tools/generate.py "$test_dirname/all"
+  passed=0
+  failures=0
+
+  for tst in "$test_dirname"/*.lox; do
+    stderr=$(./target/release/rlox "$tst" 2>&1 >/dev/null)
+    errno=$?
+    if [ "$errno" != "$test_errno" ]; then
+      error_msg "$tst [FAILED] (errno: $errno)"
+      msg "$stderr"
+      failures=$((failures + 1))
+    else
+      pass_msg "$tst [OK]"
+      passed=$((passed + 1))
+    fi
+  done
+  msg ">> Ran $passed tests passed, $failures failed."
+  rm "$test_dirname"/*.lox
+  return $failures
+}
+
+
+main() {
+  cmd=$1
+  failed=0
+  build
+  case $cmd in
+    "lexical")
+      run_tests "lexical" tests/lex 101
+      [ $? -eq 0 ] || failed=1
+      ;;
+    "syntax")
+      run_tests "syntax" tests/parse 102
+      [ $? -eq 0 ] || failed=1
+      ;;
+    "resolution")
+      run_tests "resolution" tests/resolve 103
+      [ $? -eq 0 ] || failed=1
+      ;;
+    "runtime")
+      echo "TODO"
+      ;;
+    "all")
+      run_tests "lexical" tests/lex 101
+      [ $? -eq 0 ] || failed=1
+      run_tests "syntax" tests/parse 102
+      [ $? -eq 0 ] || failed=1
+      run_tests "resolution" tests/resolve 103
+      [ $? -eq 0 ] || failed=1
+      ;;
+    *)
+      print_usage
+      ;;
+  esac
+  echo ">> Finished in $GREEN($SECONDS seconds).$NC"
+  [ $failed -eq 0 ] || exit 1
+}
+
+main $@

@@ -11,14 +11,14 @@ fun test () {
 
 #test(break outside loop 3)
 if (true) {
-  break
+  break;
 }
 #end
 
 #test(break outside loop 4)
-class {
+class Test{
   method(){
-    break
+    break;
   }
 }
 #end
@@ -35,14 +35,14 @@ fun test () {
 
 #test(continue outside loop 3)
 if (true) {
-  continue
+  continue;
 }
 #end
 
 #test(continue outside loop 4)
-class {
+class Test{
   method(){
-    continue
+    continue;
   }
 }
 #end
@@ -90,7 +90,7 @@ fun function() {
 #test(super outside class 3)
 var x = fun () {
   super.test();
-}
+};
 #end
 
 #test(super outside class 4)
@@ -118,7 +118,7 @@ fun function() {
 #test(this outside class 3)
 var x = fun () {
   this.test();
-}
+};
 #end
 
 #test(this outside class 4)
@@ -131,4 +131,32 @@ if (true){
 while (false){
   this.test();
 }
+#end
+
+#test(subclass of a non-class definition)
+fun test() {
+  1 + 1;
+}
+class Test < test {
+
+}
+#end
+
+#test(already declared identifiers 1)
+var a = 1;
+var a = 2;
+#end
+
+#test(already declared functions)
+fun test() { 1 + 2; }
+fun test() { 1 + 1; }
+#end
+
+#test(already declared classes)
+class Test {}
+class Test {}
+#end
+
+#test(recursive initializers)
+var a = a;
 #end

@@ -3,8 +3,16 @@ use super::error::{RuntimeError, RuntimeErrorKind};
 use super::globals::Globals;
 use super::Result;
 use crate::callable::Function;
-use crate::parse::{Expr, Operator, Stmt};
+use crate::class::Class;
+use crate::code::{Code, CodeLocation, HasLocation};
+use crate::parse::{Expr, ExprKind, Operator, Stmt, StmtKind};
 use crate::LoxValue;
+use std::collections::HashMap;
+use std::rc::Rc;
+
+pub trait Eval {
+    fn eval(&self, interpreter: &mut TreeWalkInterpreter) -> Result<LoxValue>;
+}
 
 pub struct TreeWalkInterpreter {
     pub env: Environment,
@@ -19,64 +27,299 @@ impl TreeWalkInterpreter {
         }
         Self { env }
     }
-    pub fn run(&mut self, stmts: Vec<Stmt>) {
-        for stmt in stmts.into_iter() {
-            let result = self.interpret(&stmt);
+
+    pub fn run<T: Eval + HasLocation>(&mut self, stmts: Vec<T>, code: &Code) {
+        for stmt in stmts.iter() {
+            let result = self.eval(stmt);
             if let Ok(LoxValue::NoValue) = result {
                 continue;
+            } else if let Err(error) = result {
+                println!("{}", "-".repeat(30));
+                println!("Error: {}", error);
+                code.print_location(&error);
+                panic!("EXIT");
             }
-            result.unwrap();
         }
     }
 
-    pub fn interpret(&mut self, stmt: &Stmt) -> Result<LoxValue> {
-        match stmt {
-            Stmt::Print(expr) => {
-                println!("{}", self.evaluate(expr)?);
+    pub fn eval<T: Eval>(&mut self, expr: &T) -> Result<LoxValue> {
+        expr.eval(self)
+    }
+
+    pub fn define(&self, key: &str, value: LoxValue) {
+        self.env.define(key, value)
+    }
+
+    pub fn assign_at(&self, key: &str, value: LoxValue, depth: usize) -> Option<LoxValue> {
+        self.env.assign_at(key, value, depth)
+    }
+
+    pub fn read_at(&self, key: &str, depth: usize) -> Option<LoxValue> {
+        self.env.read_at(key, depth)
+    }
+
+    pub fn get_env(&self) -> Environment {
+        self.env.clone()
+    }
+
+    pub fn set_env(&mut self, env: Environment) {
+        self.env = env
+    }
+
+    pub fn push_env(&mut self) {
+        self.env = self.env.push();
+    }
+
+    fn eval_unary<T: Eval + HasLocation>(&mut self, op: &Operator, expr: &T) -> Result<LoxValue> {
+        let right: LoxValue = self.eval(expr)?;
+        match op {
+            Operator::Minus => {
+                if let LoxValue::Number(n) = right {
+                    Ok(LoxValue::Number(-n))
+                } else {
+                    Err(RuntimeError::new(
+                        RuntimeErrorKind::IllegalUnaryOp,
+                        expr.get_location(),
+                    ))
+                }
+            }
+
+            Operator::Bang => Ok(LoxValue::Boolean(!right.is_truthy())),
+            _ => Err(RuntimeError::new(
+                RuntimeErrorKind::IllegalUnaryOp,
+                expr.get_location(),
+            )),
+        }
+    }
+
+    fn eval_binary<T: Eval + HasLocation>(
+        &mut self,
+        left_expr: &T,
+        op: &Operator,
+        right_expr: &T,
+    ) -> Result<LoxValue> {
+        let left: LoxValue = self.eval(left_expr)?;
+        let right: LoxValue = self.eval(right_expr)?;
+
+        match op {
+            Operator::Minus => Self::subtract(left, right, left_expr.get_location()),
+            Operator::Plus => Self::add(left, right, left_expr.get_location()),
+            Operator::Slash => Self::division(left, right, left_expr.get_location()),
+            Operator::Star => Self::mul(left, right, left_expr.get_location()),
+            Operator::Modulo => Self::modulo(left, right, left_expr.get_location()),
+            Operator::GreaterThan
+            | Operator::GreaterThanEq
+            | Operator::LessThan
+            | Operator::LessThanEq
+            | Operator::EqEq
+            | Operator::BangEq => Self::compare(left, op, right, left_expr.get_location()),
+            _ => Err(RuntimeError::new(
+                RuntimeErrorKind::IllegalBinaryOperation,
+                left_expr.get_location(),
+            )),
+        }
+    }
+
+    fn eval_ternary<T: Eval>(&mut self, root: &T, left: &T, right: &T) -> Result<LoxValue> {
+        if self.eval(root)?.is_truthy() {
+            self.eval(left)
+        } else {
+            self.eval(right)
+        }
+    }
+
+    fn eval_logical<T: Eval>(&mut self, left: &T, op: &Operator, right: &T) -> Result<LoxValue> {
+        let left_val = self.eval(left)?;
+        match op {
+            Operator::Or if left_val.is_truthy() => Ok(left_val),
+            Operator::And if !left_val.is_truthy() => Ok(left_val),
+            _ => self.eval(right),
+        }
+    }
+
+    fn eval_call<T: Eval + HasLocation>(
+        &mut self,
+        callee_expr: &T,
+        arg_exprs: &Vec<T>,
+    ) -> Result<LoxValue> {
+        let callee = self.eval(callee_expr)?;
+        let nargs = arg_exprs.len();
+        match callee {
+            LoxValue::NF(f) if f.arity != nargs => Err(RuntimeError::new(
+                RuntimeErrorKind::MismatchedArgs,
+                callee_expr.get_location(),
+            )),
+            LoxValue::F(f) if f.arity != nargs => Err(RuntimeError::new(
+                RuntimeErrorKind::MismatchedArgs,
+                callee_expr.get_location(),
+            )),
+            LoxValue::F(f) => {
+                let mut args: Vec<LoxValue> = vec![];
+                for arg in arg_exprs.iter() {
+                    let result = self.eval(arg)?;
+                    args.push(result);
+                }
+                match f.call(self, args) {
+                    Ok(LoxValue::NoValue) => Ok(LoxValue::Nil),
+                    r => r,
+                }
+            }
+            LoxValue::NF(f) => {
+                let mut args: Vec<LoxValue> = vec![];
+                for arg in arg_exprs.iter() {
+                    let result = self.eval(arg)?;
+                    args.push(result);
+                }
+                match f.call(args) {
+                    Ok(LoxValue::NoValue) => Ok(LoxValue::Nil),
+                    r => r,
+                }
+            }
+
+            LoxValue::K(class) => {
+                let mut args: Vec<LoxValue> = vec![];
+                for arg in arg_exprs.iter() {
+                    let result = self.eval(arg)?;
+                    args.push(result);
+                }
+                class.call(self, args)
+            }
+            _ => Err(RuntimeError::new(
+                RuntimeErrorKind::NotCallable,
+                callee_expr.get_location(),
+            )),
+        }
+    }
+
+    // Helpers
+    fn subtract(l_op: LoxValue, r_op: LoxValue, location: &CodeLocation) -> Result<LoxValue> {
+        match (l_op, r_op) {
+            (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l - r)),
+            _ => Err(RuntimeError::new(
+                RuntimeErrorKind::IllegalBinaryOperation,
+                location,
+            )),
+        }
+    }
+
+    fn division(l_op: LoxValue, r_op: LoxValue, location: &CodeLocation) -> Result<LoxValue> {
+        match (l_op, r_op) {
+            (LoxValue::Number(_), LoxValue::Number(r)) if r == 0.0 => {
+                Err(RuntimeError::new(RuntimeErrorKind::ZeroDivision, location))
+            }
+            (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l / r)),
+            _ => Err(RuntimeError::new(
+                RuntimeErrorKind::IllegalBinaryOperation,
+                location,
+            )),
+        }
+    }
+
+    fn mul(l_op: LoxValue, r_op: LoxValue, location: &CodeLocation) -> Result<LoxValue> {
+        match (l_op, r_op) {
+            (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l * r)),
+            _ => Err(RuntimeError::new(
+                RuntimeErrorKind::IllegalBinaryOperation,
+                location,
+            )),
+        }
+    }
+
+    fn modulo(l_op: LoxValue, r_op: LoxValue, location: &CodeLocation) -> Result<LoxValue> {
+        match (l_op, r_op) {
+            (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l % r)),
+            _ => Err(RuntimeError::new(
+                RuntimeErrorKind::IllegalBinaryOperation,
+                location,
+            )),
+        }
+    }
+
+    fn add(l_op: LoxValue, r_op: LoxValue, location: &CodeLocation) -> Result<LoxValue> {
+        match (l_op, r_op) {
+            (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l + r)),
+            (LoxValue::Str(l), LoxValue::Str(r)) => Ok(LoxValue::Str(l + r.as_str())),
+            (LoxValue::Str(l), LoxValue::Number(r)) => Ok(LoxValue::Str(format!("{}{}", l, r))),
+            (LoxValue::Number(l), LoxValue::Str(r)) => Ok(LoxValue::Str(format!("{}{}", l, r))),
+            _ => Err(RuntimeError::new(
+                RuntimeErrorKind::IllegalBinaryOperation,
+                location,
+            )),
+        }
+    }
+
+    fn compare(
+        l_op: LoxValue,
+        op: &Operator,
+        r_op: LoxValue,
+        location: &CodeLocation,
+    ) -> Result<LoxValue> {
+        let result = match op {
+            Operator::GreaterThan => LoxValue::Boolean(l_op > r_op),
+            Operator::GreaterThanEq => LoxValue::Boolean(l_op >= r_op),
+            Operator::LessThan => LoxValue::Boolean(l_op < r_op),
+            Operator::LessThanEq => LoxValue::Boolean(l_op <= r_op),
+            Operator::EqEq => LoxValue::Boolean(l_op == r_op),
+            Operator::BangEq => LoxValue::Boolean(l_op != r_op),
+            _ => {
+                return Err(RuntimeError::new(
+                    RuntimeErrorKind::IllegalBinaryOperation,
+                    location,
+                ))
+            }
+        };
+        Ok(result)
+    }
+}
+
+impl Eval for Stmt {
+    fn eval(&self, interpreter: &mut TreeWalkInterpreter) -> Result<LoxValue> {
+        match &self.kind {
+            StmtKind::Print(expr) => {
+                println!("{}", interpreter.eval(expr)?);
                 Ok(LoxValue::NoValue)
             }
-            Stmt::Expr(expr) => self.evaluate(expr),
-            Stmt::Var {
+            StmtKind::Expr(expr) => interpreter.eval(expr),
+            StmtKind::Var {
                 name,
                 init: Some(expr),
             } => {
-                let r_value = self.evaluate(expr)?;
-                self.env.define(name, r_value);
+                let r_value = interpreter.eval(expr)?;
+                interpreter.define(name, r_value);
                 Ok(LoxValue::NoValue)
             }
-            Stmt::Var { name, .. } => {
-                self.env.define(name, LoxValue::Nil);
+            StmtKind::Var { name, .. } => {
+                interpreter.define(name, LoxValue::Nil);
                 Ok(LoxValue::NoValue)
             }
-            Stmt::Block(stmts) => {
-                let tmp_env = self.env.clone();
-                let new_env = self.env.push();
-                self.env = new_env;
+            StmtKind::Block(stmts) => {
+                let tmp_env = interpreter.get_env();
+                let new_env = interpreter.push_env();
                 for stmt in stmts.into_iter() {
-                    self.interpret(stmt)?;
+                    interpreter.eval(stmt)?;
                 }
-                self.env = tmp_env;
+                interpreter.set_env(tmp_env);
                 // TODO: How to return value from function body
                 Ok(LoxValue::NoValue)
             }
 
-            Stmt::If {
+            StmtKind::If {
                 condition,
                 then,
                 otherwise,
             } => {
-                if Self::is_truthy(&self.evaluate(condition)?) {
-                    self.interpret(then)
+                if interpreter.eval(condition)?.is_truthy() {
+                    interpreter.eval(then.as_ref())
                 } else if let Some(else_block) = otherwise {
-                    self.interpret(else_block)
+                    interpreter.eval(else_block.as_ref())
                 } else {
                     Ok(LoxValue::NoValue)
                 }
             }
 
-            Stmt::While { condition, body } => {
-                while Self::is_truthy(&self.evaluate(condition)?) {
-                    let result = self.interpret(body);
+            StmtKind::While { condition, body } => {
+                while interpreter.eval(condition)?.is_truthy() {
+                    let result = interpreter.eval(body.as_ref());
                     match result {
                         Err(err) => match err.kind {
                             RuntimeErrorKind::RuntimeCtrlBreak => break,
@@ -88,218 +331,212 @@ impl TreeWalkInterpreter {
                 }
                 Ok(LoxValue::NoValue)
             }
-            Stmt::Function { name, params, body } => {
+            StmtKind::Function { name, params, body } => {
                 let func = LoxValue::F(Function::new(
                     name.to_owned(),
                     params.clone(),
                     *body.clone(),
-                    self.env.clone(),
+                    interpreter.get_env(),
                 ));
-                self.env.define(&name, func);
+                interpreter.define(&name, func);
                 Ok(LoxValue::NoValue)
             }
-            Stmt::Return(Some(expr)) => {
-                let val = self.evaluate(&expr)?;
-                Err(RuntimeError::new(RuntimeErrorKind::RuntimeCtrlReturn(val)))
+            StmtKind::Class {
+                name: class_name,
+                base,
+                methods,
+            } => {
+                let mut method_list: HashMap<String, Function> = HashMap::new();
+                // do we have a base class?
+                let maybe_base_cls: Option<LoxValue> = match &base {
+                    // If this is a subclass, eval the base class
+                    Some(b_expr) => {
+                        let base_value = interpreter.eval(b_expr.as_ref())?;
+                        match base_value {
+                            // make sure the base class is actually a reference
+                            // to a class `LoxValue::K`
+                            LoxValue::K(_) => Some(base_value),
+                            // Cannot inherit from non-class values.
+                            _ => {
+                                return Err(RuntimeError::new(
+                                    RuntimeErrorKind::IllegalInheritance,
+                                    &b_expr.location,
+                                ))
+                            }
+                        }
+                    }
+                    // Otherwise it's not a base class
+                    None => None,
+                };
+                let old_env = interpreter.get_env();
+                if let Some(base_cls) = &maybe_base_cls {
+                    let new_env = old_env.push();
+                    interpreter.set_env(new_env);
+                    interpreter.define("super", base_cls.clone());
+                }
+
+                for method in methods {
+                    if let StmtKind::Function { name, params, body } = &method.kind {
+                        let func = Function::new(
+                            format!("{}.{}", class_name, name),
+                            params.clone(),
+                            *body.clone(),
+                            interpreter.get_env(),
+                        );
+                        method_list.insert(name.clone(), func);
+                    } else {
+                        return Err(RuntimeError::new(
+                            RuntimeErrorKind::FatalError,
+                            &self.location,
+                        ));
+                    }
+                }
+                let class = Class::new(class_name, maybe_base_cls.clone(), method_list);
+                if maybe_base_cls.is_some() {
+                    interpreter.set_env(old_env);
+                }
+                interpreter.define(&class_name, LoxValue::K(Rc::new(class)));
+                Ok(LoxValue::NoValue)
             }
-            Stmt::Return(None) => Err(RuntimeError::new(RuntimeErrorKind::RuntimeCtrlReturn(
-                LoxValue::Nil,
-            ))),
-            Stmt::Break => Err(RuntimeError::new(RuntimeErrorKind::RuntimeCtrlBreak)),
-            Stmt::Continue => Err(RuntimeError::new(RuntimeErrorKind::RuntimeCtrlContinue)),
+            StmtKind::Return(Some(expr)) => {
+                let val = interpreter.eval(expr)?;
+                Err(RuntimeError::return_(val))
+            }
+            StmtKind::Return(None) => Err(RuntimeError::return_(LoxValue::Nil)),
+            StmtKind::Break => Err(RuntimeError::break_()),
+            StmtKind::Continue => Err(RuntimeError::continue_()),
         }
     }
+}
 
-    fn evaluate(&mut self, expression: &Expr) -> Result<LoxValue> {
-        match expression {
-            Expr::Literal { value } => Ok(value.clone()),
-            Expr::Grouping { expr } => self.evaluate(expr),
-            Expr::Unary { operator, expr } => self.evaluate_unary(operator, expr),
-            Expr::Binary {
+impl Eval for Expr {
+    fn eval(&self, interpreter: &mut TreeWalkInterpreter) -> Result<LoxValue> {
+        match &self.kind {
+            ExprKind::Literal { value } => Ok(value.clone()),
+            ExprKind::Grouping { ref expr } => interpreter.eval(expr.as_ref()),
+            ExprKind::Unary { operator, expr } => interpreter.eval_unary(operator, expr.as_ref()),
+            ExprKind::Binary {
                 left,
                 operator,
                 right,
-            } => self.evaluate_binary(left, operator, right),
-            Expr::Ternary { root, left, right } => self.evaluate_ternary(root, left, right),
-            Expr::Logical {
+            } => interpreter.eval_binary(left.as_ref(), operator, right.as_ref()),
+            ExprKind::Ternary { root, left, right } => {
+                interpreter.eval_ternary(root.as_ref(), left.as_ref(), right.as_ref())
+            }
+            ExprKind::Logical {
                 left,
                 operator,
                 right,
-            } => self.evaluate_logical(left, operator, right),
-            Expr::Var { name, depth } => match self.env.read_at(&name, *depth) {
-                // Return a copy of the stored value.
-                Ok(v) => Ok(v.clone()),
-                Err(e) => Err(e),
+            } => interpreter.eval_logical(left.as_ref(), operator, right.as_ref()),
+
+            ExprKind::This { depth } => match interpreter.read_at("this", *depth) {
+                Some(v) => Ok(v.clone()),
+                // "this" keyword should always resolve to a value!
+                None => Err(RuntimeError::new(
+                    RuntimeErrorKind::FatalError,
+                    &self.location,
+                )),
             },
-            Expr::Lambda { params, body } => {
+            ExprKind::Super { property, depth } => {
+                let maybe_base_cls = interpreter.read_at("super", *depth);
+                // Do we have a base class?
+                if let Some(LoxValue::K(base)) = maybe_base_cls {
+                    let maybe_instance = interpreter.read_at("this", depth - 1);
+                    // Should defintely have a reference to "this"
+                    if let Some(LoxValue::I(instance)) = maybe_instance {
+                        let maybe_method = base.get_method(property);
+                        // does the method exist on the super class?
+                        if let Some(method) = maybe_method {
+                            Ok(method.bind(&instance))
+                        } else {
+                            // Method doesn't exist
+                            return Err(RuntimeError::new(
+                                RuntimeErrorKind::UndefinedProperty,
+                                &self.location,
+                            ));
+                        }
+                    } else {
+                        // Fatal error, this should exist on the preciding
+                        // environment
+                        Err(RuntimeError::new(
+                            RuntimeErrorKind::FatalError,
+                            &self.location,
+                        ))
+                    }
+                } else {
+                    // Class has no base class
+                    Err(RuntimeError::new(
+                        RuntimeErrorKind::NoBaseClass,
+                        &self.location,
+                    ))
+                }
+            }
+            ExprKind::Var { name, depth } => match interpreter.read_at(&name, *depth) {
+                // Return a copy of the stored value.
+                Some(v) => Ok(v.clone()),
+                None => Err(RuntimeError::new(
+                    RuntimeErrorKind::UndeclaredVariable,
+                    &self.location,
+                )),
+            },
+
+            ExprKind::Lambda { params, body } => {
                 let lambda = LoxValue::F(Function::new(
                     "lambda".to_owned(),
                     params.clone(),
                     *body.clone(),
-                    self.env.clone(),
+                    interpreter.get_env(),
                 ));
                 Ok(lambda)
             }
-            Expr::Assign { name, expr, depth } => {
-                let r_value = self.evaluate(expr)?;
+            ExprKind::Assign { name, expr, depth } => {
+                let r_value = interpreter.eval(expr.as_ref())?;
                 // Return a copy of the assigned value
-                Ok(self.env.assign_at(name, r_value, *depth)?)
+                interpreter
+                    .assign_at(&name, r_value, *depth)
+                    .ok_or(RuntimeError::new(
+                        RuntimeErrorKind::UndeclaredVariable,
+                        &self.location,
+                    ))
             }
-            Expr::Call { callee, args } => self.evaluate_call(callee, args),
-            _ => Err(RuntimeError::new(RuntimeErrorKind::UnrecognizedExpression)),
-        }
-    }
-
-    fn evaluate_unary(&mut self, op: &Operator, expr: &Expr) -> Result<LoxValue> {
-        let right: LoxValue = self.evaluate(expr)?;
-        match op {
-            Operator::Minus => {
-                if let LoxValue::Number(n) = right {
-                    Ok(LoxValue::Number(-n))
-                } else {
-                    Err(RuntimeError::new(RuntimeErrorKind::IllegalUnaryOp))
+            ExprKind::Call { callee, args } => interpreter.eval_call(callee.as_ref(), args),
+            ExprKind::Get { name, object } => {
+                let instance = interpreter.eval(object.as_ref())?;
+                match instance {
+                    LoxValue::I(instance) => match instance.get(name) {
+                        Some(v) => Ok(v),
+                        _ => Err(RuntimeError::new(
+                            RuntimeErrorKind::UndefinedProperty,
+                            &self.location,
+                        )),
+                    },
+                    _ => Err(RuntimeError::new(
+                        RuntimeErrorKind::AccessOnPrimitiveType,
+                        &self.location,
+                    )),
                 }
             }
-
-            Operator::Bang => Ok(LoxValue::Boolean(!Self::is_truthy(&right))),
-            _ => Err(RuntimeError::new(RuntimeErrorKind::IllegalUnaryOp)),
-        }
-    }
-
-    fn evaluate_binary(&mut self, left: &Expr, op: &Operator, right: &Expr) -> Result<LoxValue> {
-        let left: LoxValue = self.evaluate(left)?;
-        let right: LoxValue = self.evaluate(right)?;
-
-        match op {
-            Operator::Minus => Self::subtract(left, right),
-            Operator::Plus => Self::add(left, right),
-            Operator::Slash => Self::division(left, right),
-            Operator::Star => Self::mul(left, right),
-            Operator::Modulo => Self::modulo(left, right),
-            Operator::GreaterThan
-            | Operator::GreaterThanEq
-            | Operator::LessThan
-            | Operator::LessThanEq
-            | Operator::EqEq
-            | Operator::BangEq => Self::compare(left, op, right),
-            _ => Err(RuntimeError::new(RuntimeErrorKind::IllegalBinaryOperation)),
-        }
-    }
-
-    fn evaluate_ternary(&mut self, root: &Expr, left: &Expr, right: &Expr) -> Result<LoxValue> {
-        if Self::is_truthy(&self.evaluate(root)?) {
-            self.evaluate(left)
-        } else {
-            self.evaluate(right)
-        }
-    }
-
-    fn evaluate_logical(&mut self, left: &Expr, op: &Operator, right: &Expr) -> Result<LoxValue> {
-        let left_val = self.evaluate(left)?;
-        match op {
-            Operator::Or if Self::is_truthy(&left_val) => Ok(left_val),
-            Operator::And if !Self::is_truthy(&left_val) => Ok(left_val),
-            _ => self.evaluate(right),
-        }
-    }
-
-    fn evaluate_call(&mut self, callee_expr: &Expr, arg_exprs: &Vec<Expr>) -> Result<LoxValue> {
-        let callee = self.evaluate(callee_expr)?;
-        let nargs = arg_exprs.len();
-        match callee {
-            LoxValue::NF(f) if f.arity != nargs => {
-                Err(RuntimeError::new(RuntimeErrorKind::MismatchedArgs))
-            }
-            LoxValue::F(f) if f.arity != nargs => {
-                Err(RuntimeError::new(RuntimeErrorKind::MismatchedArgs))
-            }
-            LoxValue::F(f) => {
-                let mut args: Vec<LoxValue> = vec![];
-                for arg in arg_exprs.iter() {
-                    let result = self.evaluate(arg)?;
-                    args.push(result);
-                }
-                match f.call(self, args) {
-                    Ok(LoxValue::NoValue) => Ok(LoxValue::Nil),
-                    r => r,
+            ExprKind::Set {
+                name,
+                object,
+                value,
+            } => {
+                let instance = interpreter.eval(object.as_ref())?;
+                match instance {
+                    LoxValue::I(instance) => {
+                        let value = interpreter.eval(value.as_ref())?;
+                        instance.set(name, value)
+                    }
+                    _ => Err(RuntimeError::new(
+                        RuntimeErrorKind::AccessOnPrimitiveType,
+                        &self.location,
+                    )),
                 }
             }
-            LoxValue::NF(f) => {
-                let mut args: Vec<LoxValue> = vec![];
-                for arg in arg_exprs.iter() {
-                    let result = self.evaluate(arg)?;
-                    args.push(result);
-                }
-                match f.call(args) {
-                    Ok(LoxValue::NoValue) => Ok(LoxValue::Nil),
-                    r => r,
-                }
-            }
-            _ => Err(RuntimeError::new(RuntimeErrorKind::NotCallable)),
+            _ => Err(RuntimeError::new(
+                RuntimeErrorKind::UnrecognizedExpression,
+                &self.location,
+            )),
         }
-    }
-
-    // Helpers
-    fn is_truthy(value: &LoxValue) -> bool {
-        match value {
-            LoxValue::Boolean(flag) => *flag,
-            LoxValue::Nil => false,
-            LoxValue::NoValue => panic!("Illegal value in is_truthy"),
-            _ => true,
-        }
-    }
-
-    fn subtract(l_op: LoxValue, r_op: LoxValue) -> Result<LoxValue> {
-        match (l_op, r_op) {
-            (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l - r)),
-            _ => Err(RuntimeError::new(RuntimeErrorKind::IllegalBinaryOperation)),
-        }
-    }
-
-    fn division(l_op: LoxValue, r_op: LoxValue) -> Result<LoxValue> {
-        match (l_op, r_op) {
-            (LoxValue::Number(_), LoxValue::Number(r)) if r == 0.0 => {
-                Err(RuntimeError::new(RuntimeErrorKind::ZeroDivision))
-            }
-            (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l / r)),
-            _ => Err(RuntimeError::new(RuntimeErrorKind::IllegalBinaryOperation)),
-        }
-    }
-
-    fn mul(l_op: LoxValue, r_op: LoxValue) -> Result<LoxValue> {
-        match (l_op, r_op) {
-            (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l * r)),
-            _ => Err(RuntimeError::new(RuntimeErrorKind::IllegalBinaryOperation)),
-        }
-    }
-
-    fn modulo(l_op: LoxValue, r_op: LoxValue) -> Result<LoxValue> {
-        match (l_op, r_op) {
-            (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l % r)),
-            _ => Err(RuntimeError::new(RuntimeErrorKind::IllegalBinaryOperation)),
-        }
-    }
-
-    fn add(l_op: LoxValue, r_op: LoxValue) -> Result<LoxValue> {
-        match (l_op, r_op) {
-            (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l + r)),
-            (LoxValue::Str(l), LoxValue::Str(r)) => Ok(LoxValue::Str(l + r.as_str())),
-            (LoxValue::Str(l), LoxValue::Number(r)) => Ok(LoxValue::Str(format!("{}{}", l, r))),
-            (LoxValue::Number(l), LoxValue::Str(r)) => Ok(LoxValue::Str(format!("{}{}", l, r))),
-            _ => Err(RuntimeError::new(RuntimeErrorKind::IllegalBinaryOperation)),
-        }
-    }
-
-    fn compare(l_op: LoxValue, op: &Operator, r_op: LoxValue) -> Result<LoxValue> {
-        let result = match op {
-            Operator::GreaterThan => LoxValue::Boolean(l_op > r_op),
-            Operator::GreaterThanEq => LoxValue::Boolean(l_op >= r_op),
-            Operator::LessThan => LoxValue::Boolean(l_op < r_op),
-            Operator::LessThanEq => LoxValue::Boolean(l_op <= r_op),
-            Operator::EqEq => LoxValue::Boolean(l_op == r_op),
-            Operator::BangEq => LoxValue::Boolean(l_op != r_op),
-            _ => return Err(RuntimeError::new(RuntimeErrorKind::IllegalBinaryOperation)),
-        };
-        Ok(result)
     }
 }

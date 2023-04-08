@@ -4,20 +4,20 @@ use std::fmt::{self, Display, Formatter};
 #[derive(Debug, PartialEq)]
 pub enum TokenType {
     // Single character tokens
-    LeftParen,
-    RightParen,
-    LeftBrace,
-    RightBrace,
+    Colon,
     Comma,
     Dot,
+    LeftParen,
+    LeftBrace,
     Minus,
-    Plus,
     Modulo,
-    Colon,
+    Plus,
+    Qmark,
+    RightParen,
+    RightBrace,
     SemiColon,
     Slash,
     Star,
-    Qmark,
 
     // One or two character tokens
     Bang,
@@ -33,12 +33,14 @@ pub enum TokenType {
 
     // Literals
     Identifier,
-    String,
     Number,
+    String,
 
     // Keywords
     And,
+    Break,
     Class,
+    Continue,
     Else,
     False,
     Fun,
@@ -53,8 +55,6 @@ pub enum TokenType {
     True,
     Var,
     While,
-    Break,
-    Continue,
 
     // EOF
     EOF,

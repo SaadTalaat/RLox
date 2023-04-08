@@ -4,27 +4,39 @@ use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug)]
 pub enum ParseErrorKind {
+    AlreadyDeclaredIdentifier,
+    BaseClassNotAClass,
+    // Fatal error, Interpreter Internal error
+    FatalError,
+    IllegalClassDecl,
     IllegalFunctionDecl,
     IllegalIfStatement,
     IllegalOperator,
     IllegalWhile,
     IllegalFor,
+    IllegalVarDeclaration,
     MaximumParamExceeded,
     MissingTernaryColon,
     MissingSemiColon,
     MissingVariableName,
     MissingFunctionName,
+    MissingClassName,
     MissingBlockBrace,
+    MissingPropertyName,
+    NotInALoop,
+    NotASubClass,
     ParamExpected,
     // assigning r-value to another r-value
     RvToRvAssignment,
+    RecursiveInitializer,
+    ReturnAtTopLevel,
+    SuperOutsideClass,
+    DotExpected,
     TooManyArgs,
+    ThisOutsideClass,
     UnbalancedParentheses,
     UnterminatedBlock,
     UnexpectedToken,
-    // Fatal error
-    FatalError,
-    RecursiveInitializer,
 }
 
 #[derive(Debug)]
@@ -34,10 +46,10 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    pub fn new(kind: ParseErrorKind, location: CodeLocation) -> Self {
+    pub fn new(kind: ParseErrorKind, location: &CodeLocation) -> Self {
         Self {
             kind,
-            location: location,
+            location: location.clone(),
         }
     }
 }

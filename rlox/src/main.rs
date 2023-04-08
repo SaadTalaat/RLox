@@ -17,40 +17,56 @@ fn run(source: String) {
     let mut errors = 0;
     let mut tokens = vec![];
     for result in lex_iter {
-        println!("Lexer: {result:?}");
         match result {
             Ok(token) => {
                 tokens.push(token);
                 counter += 1
             }
-            Err(_) => errors += 1,
+            Err(error) => {
+                eprintln!("> [Lexer]: {error}");
+                errors += 1;
+            }
         }
     }
+    if errors > 0 {
+        std::process::exit(101);
+    }
 
-    let parse_iter = RDParser::new(tokens, code);
-    let mut counter = 0;
-    let mut errors = 0;
+    let parse_iter = RDParser::new(tokens, &code);
     let mut exprs = vec![];
 
     for result in parse_iter {
         match result {
             Ok(expr) => {
-                println!("Parser: {expr}");
                 exprs.push(expr);
                 counter += 1;
             }
             Err(error) => {
-                eprintln!("Parser: {error}");
+                eprintln!("> [Parser]: {error}");
                 errors += 1;
             }
         }
     }
+    if errors > 0 {
+        std::process::exit(102);
+    }
 
     let mut resolver = Resolver::new();
-    resolver.resolve_stmts(&mut exprs).unwrap();
+    let results = resolver.resolve_stmts(&mut exprs);
+    for result in results {
+        match result {
+            Ok(expr) => {}
+            Err(error) => {
+                eprintln!("> [Resolver]: {error}");
+                errors +=1;
+            }
+        }
+    }
+    if errors > 0 {
+        std::process::exit(103);
+    }
     let mut interpreter = TreeWalkInterpreter::new();
-    println!("====== Running ======");
-    interpreter.run(exprs);
+    interpreter.run(exprs, &code);
     println!(
         "Parsed {counter} tokens, with {errors} errors, in {} ms",
         now.elapsed().as_millis()

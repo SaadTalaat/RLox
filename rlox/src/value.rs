@@ -1,6 +1,8 @@
 use super::callable::{Function, NativeFunction};
+use super::class::{Class, Instance};
 use std::cmp::Ordering;
 use std::fmt::{self, Display, Formatter};
+use std::rc::Rc;
 
 #[derive(Debug, Clone)]
 pub enum LoxValue {
@@ -11,6 +13,19 @@ pub enum LoxValue {
     Str(String),
     NF(NativeFunction),
     F(Function),
+    K(Rc<Class>),
+    I(Rc<Instance>),
+}
+
+impl LoxValue {
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            LoxValue::Boolean(flag) => *flag,
+            LoxValue::Nil => false,
+            LoxValue::NoValue => panic!("Illegal value in is_truthy"),
+            _ => true,
+        }
+    }
 }
 
 impl PartialEq for LoxValue {
@@ -42,9 +57,15 @@ impl PartialOrd for LoxValue {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
             (Self::NoValue, _) | (_, Self::NoValue) => panic!("Cannot compare `NoValue`"),
-            (Self::NF(_), _) | (_, Self::NF(_)) | (Self::F(_), _) | (_, Self::F(_)) => {
-                panic!("Cannot compare functions")
+            (Self::NF(_), _)
+            | (_, Self::NF(_))
+            | (Self::F(_), _)
+            | (_, Self::F(_))
+            | (Self::K(_), _)
+            | (_, Self::K(_)) => {
+                panic!("Cannot compare callables")
             }
+            (Self::I(l), Self::I(r)) => l.partial_cmp(r),
             (Self::Nil, Self::Nil) => Some(Ordering::Equal),
             (Self::Nil, _) => Some(Ordering::Less),
             (_, Self::Nil) => Some(Ordering::Greater),
@@ -76,6 +97,8 @@ impl Display for LoxValue {
             Self::Str(s) => format!("{}", s),
             Self::NF(f) => format!("function({})", f.name),
             Self::F(f) => format!("function({})", f.name),
+            Self::K(c) => format!("<class {}>", c.name),
+            Self::I(c) => format!("<instance {}>", c.class.name),
         };
         write!(formatter, "{}", repr)
     }

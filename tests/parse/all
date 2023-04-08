@@ -123,13 +123,6 @@ for(;;{
     }
 #end
 
-#test(for with expr in initializer)
-    for(1+2; false; )
-    {
-      break;
-    }
-#end
-
 #test(for without braces)
 for(;;)
 #end

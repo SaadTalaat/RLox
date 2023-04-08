@@ -297,6 +297,8 @@ impl<'a> Lexer<'a> {
             "break" => TokenType::Break,
             "continue" => TokenType::Continue,
             "fun" => TokenType::Fun,
+            "this" => TokenType::This,
+            "super" => TokenType::Super,
             _ => TokenType::Identifier,
         };
         Ok(token_type)
