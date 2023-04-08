@@ -46,7 +46,8 @@ class List {
     // Point to the same previous node as the old node;
     new_node.previous = node.previous;
     // Now make the next node point to us.
-    prev_node.previous = new_node;
+    if (prev_node != nil)
+      prev_node.previous = new_node;
     // Detach removed node
     node.previous = nil;
     return node.value;

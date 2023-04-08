@@ -1,4 +1,4 @@
-// Inserting in a list of 1000 elements, 10,000 Iterations
+// 5x5 Matrix multiplication, 1000 Iterations
 
 class Node {
   init(value){
@@ -67,15 +67,41 @@ class List {
   }
 }
 
-// Make a list of 1000 elements
-var my_list = List();
-for (var cnt = 0; cnt < 1000; cnt = cnt + 1) {
-  my_list.push(cnt);
+fun init_matrix(m, n) {
+  var my_list = List();
+  for(var i = 0; i < m; i = i + 1){
+    var row = List();
+    for(var j = 0; j < n; j = j + 1){
+      row.push(1);
+    }
+    my_list.push(row);
+  }
+  return my_list;
 }
-var NRUNS = 10000;
+
+fun matrix_mul(m1, m2) {
+  var result = init_matrix(m2.size, m2.get(0).size);
+  for(var rm1_idx = 0; rm1_idx < m1.size; rm1_idx = rm1_idx + 1){
+    var rm1 = m1.get(rm1_idx);
+    var ncolumns = m2.get(0).size;
+    for(var cm2_idx = 0; cm2_idx < ncolumns; cm2_idx = cm2_idx + 1){
+
+      for (var rm2_idx = 0; rm2_idx < m2.size; rm2_idx = rm2_idx + 1){
+        var m1_cell = m1.get(rm1_idx).get(rm2_idx);
+        var m2_cell = m2.get(rm2_idx).get(cm2_idx);
+        result.get(rm1_idx).insert(cm2_idx, m1_cell * m2_cell);
+      }
+    }
+  }
+  return result;
+}
+
+var matrix_1 = init_matrix(5, 5);
+var matrix_2 = init_matrix(5, 5);
+var NRUNS = 1000;
 var then = clock();
 for(var cnt = 0; cnt < NRUNS; cnt = cnt + 1) {
-  my_list.insert(0, "test");
+  matrix_mul(matrix_1, matrix_2);
 }
 
 var elapsed = clock() - then;
