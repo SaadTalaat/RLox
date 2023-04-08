@@ -55,8 +55,9 @@ fn run(source: String) {
     }
 
     // Identifier resolution
-    let global_fns: Vec<String> = Globals::get().into_iter().map(|nfn| nfn.name).collect();
-    let mut resolver = Resolver::new(&global_fns);
+    let globals = Globals::get();
+    let global_fns: Vec<&String> = globals.iter().map(|nfn| &nfn.name).collect();
+    let mut resolver = Resolver::new(global_fns);
     let results = resolver.resolve_stmts(&mut exprs);
     for result in results {
         match result {
@@ -70,7 +71,7 @@ fn run(source: String) {
     if errors > 0 {
         std::process::exit(103);
     }
-    let mut interpreter = TreeWalkInterpreter::new();
+    let mut interpreter = TreeWalkInterpreter::new(globals);
     let result = interpreter.run(exprs, &code);
     match result {
         Err(error) if error.kind == RuntimeErrorKind::FatalError => {

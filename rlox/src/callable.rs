@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 pub type LoxApplyFn = fn(Vec<LoxValue>) -> Result<LoxValue>;
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone)]
 pub struct NativeFunction {
     pub name: String,
     pub arity: usize,
@@ -34,30 +34,26 @@ pub struct Function {
     pub name: String,
     pub arity: usize,
     params: Vec<String>,
-    body: Box<Stmt>,
+    body: Rc<Stmt>,
     closure: Environment,
 }
 
 impl Function {
-    pub fn new(name: String, params: Vec<String>, body: Stmt, closure: Environment) -> Self {
+    pub fn new(name: String, params: &Vec<String>, body: &Rc<Stmt>, closure: Environment) -> Self {
         Self {
             name,
             arity: params.len(),
-            params,
-            body: Box::new(body),
-            closure: closure,
+            params: params.clone(),
+            body: body.clone(),
+            closure,
         }
     }
 
     pub fn bind(&self, instance: &Rc<Instance>) -> LoxValue {
         let env = self.closure.push();
         env.define("this", LoxValue::I(instance.clone()));
-        LoxValue::F(Self::new(
-            self.name.clone(),
-            self.params.clone(),
-            *self.body.clone(),
-            env,
-        ))
+        let func = Self::new(self.name.clone(), &self.params, &self.body, env);
+        LoxValue::F(Rc::new(func))
     }
 
     pub fn call(
@@ -69,10 +65,15 @@ impl Function {
         // number of arguments, so panic in case we have wrong number
         // of arguments.
         if args.len() != self.arity {
-            panic!("Core Failure: function {} received wrong number of args {}, expected {}.", self.name, args.len(), self.arity);
+            panic!(
+                "Core Failure: function {} received wrong number of args {}, expected {}.",
+                self.name,
+                args.len(),
+                self.arity
+            );
         }
-        let globals = interpreter.get_env();
-        interpreter.set_env(self.closure.clone());
+        let globals = interpreter.clone_env();
+        interpreter.set_env_from_ptr(&self.closure);
         interpreter.push_env();
         let zipped = std::iter::zip(self.params.iter(), args.into_iter());
         for (param, arg) in zipped {

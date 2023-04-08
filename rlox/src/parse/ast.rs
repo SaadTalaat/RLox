@@ -76,7 +76,7 @@ impl Display for Operator {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone)]
 pub enum StmtKind {
     Expr(Expr),
     Print(Expr),
@@ -109,7 +109,7 @@ pub enum StmtKind {
     Continue,
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone)]
 pub struct Stmt {
     pub kind: StmtKind,
     pub location: CodeLocation,
@@ -244,7 +244,7 @@ impl HasLocation for Stmt {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone)]
 pub enum ExprKind {
     Literal {
         value: LoxValue,
@@ -306,7 +306,7 @@ pub enum ExprKind {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, PartialOrd)]
+#[derive(Debug, Clone)]
 pub struct Expr {
     pub kind: ExprKind,
     pub location: CodeLocation,

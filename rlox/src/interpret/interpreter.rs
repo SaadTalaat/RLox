@@ -1,8 +1,7 @@
 use super::env::Environment;
 use super::error::{RuntimeError, RuntimeErrorKind};
-use super::globals::Globals;
 use super::Result;
-use crate::callable::Function;
+use crate::callable::{Function, NativeFunction};
 use crate::class::Class;
 use crate::code::{Code, CodeLocation, HasLocation};
 use crate::parse::{Expr, ExprKind, Operator, Stmt, StmtKind};
@@ -19,11 +18,11 @@ pub struct TreeWalkInterpreter {
 }
 
 impl TreeWalkInterpreter {
-    pub fn new() -> Self {
-        let globals = Globals::get();
+    pub fn new(globals: Vec<NativeFunction>) -> Self {
         let env = Environment::new();
         for f in globals.into_iter() {
-            env.define(&f.name.clone(), LoxValue::NF(f));
+            let fn_name = f.name.clone();
+            env.define(&fn_name, LoxValue::NF(Rc::new(f)));
         }
         Self { env }
     }
@@ -60,12 +59,16 @@ impl TreeWalkInterpreter {
         self.env.read_at(key, depth)
     }
 
-    pub fn get_env(&self) -> Environment {
+    pub fn clone_env(&self) -> Environment {
         self.env.clone()
     }
 
+    pub fn set_env_from_ptr(&mut self, env: &Environment) {
+        self.env = env.clone()
+    }
+
     pub fn set_env(&mut self, env: Environment) {
-        self.env = env
+        self.env = env.clone()
     }
 
     pub fn push_env(&mut self) {
@@ -297,7 +300,7 @@ impl Eval for Stmt {
                 Ok(LoxValue::NoValue)
             }
             StmtKind::Block(stmts) => {
-                let tmp_env = interpreter.get_env();
+                let tmp_env = interpreter.clone_env();
                 interpreter.push_env();
                 for stmt in stmts.into_iter() {
                     interpreter.eval(stmt)?;
@@ -336,13 +339,11 @@ impl Eval for Stmt {
                 Ok(LoxValue::NoValue)
             }
             StmtKind::Function { name, params, body } => {
-                let func = LoxValue::F(Function::new(
-                    name.to_owned(),
-                    params.clone(),
-                    *body.clone(),
-                    interpreter.get_env(),
-                ));
-                interpreter.define(&name, func);
+                let body_rc = Rc::new(*body.clone());
+                let func =
+                    Function::new(name.to_owned(), params, &body_rc, interpreter.clone_env());
+                let func_val = LoxValue::F(Rc::new(func));
+                interpreter.define(&name, func_val);
                 Ok(LoxValue::NoValue)
             }
             StmtKind::Class {
@@ -374,20 +375,21 @@ impl Eval for Stmt {
                     // Otherwise it's not a base class
                     None => None,
                 };
-                let old_env = interpreter.get_env();
+                let old_env = interpreter.clone_env();
                 if let Some(base_cls) = &maybe_base_cls {
-                    let new_env = old_env.push();
-                    interpreter.set_env(new_env);
+                    interpreter.push_env();
                     interpreter.define("super", base_cls.clone());
                 }
 
                 for method in methods {
                     if let StmtKind::Function { name, params, body } = &method.kind {
+                        // Expensive declaration but cheaper binding.
+                        let body_rc = Rc::new(*body.clone());
                         let func = Function::new(
                             format!("{}.{}", class_name, name),
-                            params.clone(),
-                            *body.clone(),
-                            interpreter.get_env(),
+                            params,
+                            &body_rc,
+                            interpreter.clone_env(),
                         );
                         method_list.insert(name.clone(), func);
                     } else {
@@ -497,12 +499,14 @@ impl Eval for Expr {
             },
 
             ExprKind::Lambda { params, body } => {
-                let lambda = LoxValue::F(Function::new(
+                let body_rc = Rc::new(*body.clone());
+                let func = Function::new(
                     "lambda".to_owned(),
-                    params.clone(),
-                    *body.clone(),
-                    interpreter.get_env(),
-                ));
+                    params,
+                    &body_rc,
+                    interpreter.clone_env(),
+                );
+                let lambda = LoxValue::F(Rc::new(func));
                 Ok(lambda)
             }
 

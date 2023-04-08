@@ -21,7 +21,7 @@ pub struct Resolver {
 }
 
 impl Resolver {
-    pub fn new(native_fns: &Vec<String>) -> Self {
+    pub fn new(native_fns: Vec<&String>) -> Self {
         let mut me = Self {
             scopes: vec![HashMap::new()],
             loop_depth: 0,

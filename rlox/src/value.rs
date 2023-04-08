@@ -11,8 +11,8 @@ pub enum LoxValue {
     Number(f64),
     Boolean(bool),
     Str(String),
-    NF(NativeFunction),
-    F(Function),
+    NF(Rc<NativeFunction>),
+    F(Rc<Function>),
     K(Rc<Class>),
     I(Rc<Instance>),
 }
