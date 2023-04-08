@@ -27,7 +27,7 @@ impl Globals {
     pub fn get() -> Vec<NativeFunction> {
         vec![
             NativeFunction::new("clock", 0, Self::clock),
-            NativeFunction::new("exit", 0, Self::exit),
+            NativeFunction::new("exit", 1, Self::exit),
         ]
     }
 }

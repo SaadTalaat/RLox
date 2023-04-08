@@ -92,7 +92,7 @@ impl Display for LoxValue {
         let repr = match self {
             Self::NoValue => return Err(fmt::Error),
             Self::Nil => "nil".to_owned(),
-            Self::Number(num) => format!("{}", num),
+            Self::Number(num) => format!("{:.6}", num),
             Self::Boolean(b) => format!("{}", b),
             Self::Str(s) => format!("{}", s),
             Self::NF(f) => format!("function({})", f.name),

@@ -241,8 +241,10 @@ impl TreeWalkInterpreter {
         match (l_op, r_op) {
             (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l + r)),
             (LoxValue::Str(l), LoxValue::Str(r)) => Ok(LoxValue::Str(l + r.as_str())),
-            (LoxValue::Str(l), LoxValue::Number(r)) => Ok(LoxValue::Str(format!("{}{}", l, r))),
-            (LoxValue::Number(l), LoxValue::Str(r)) => Ok(LoxValue::Str(format!("{}{}", l, r))),
+            (LoxValue::Str(l), LoxValue::Number(r)) => Ok(LoxValue::Str(format!("{}{:.6}", l, r))),
+            (LoxValue::Number(l), LoxValue::Str(r)) => Ok(LoxValue::Str(format!("{:.6}{}", l, r))),
+            (LoxValue::Str(l), LoxValue::Nil) => Ok(LoxValue::Str(format!("{}nil", l,))),
+            (LoxValue::Nil, LoxValue::Str(r)) => Ok(LoxValue::Str(format!("nil{}", r))),
             _ => Err(RuntimeError::new(
                 RuntimeErrorKind::IllegalBinaryOp,
                 location,
