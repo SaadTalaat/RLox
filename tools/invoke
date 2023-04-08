@@ -2,6 +2,7 @@
 
 RUST_BACKTRACE=1
 PROFILE=release
+PROFILE_PATH=release
 TARGET=
 RUNTIME=
 RUNTIME_OPTS=
@@ -17,6 +18,7 @@ load_module() {
 
 modules=(
   tools/test.sh
+  tools/benchmark.sh
   tools/utils.sh
 )
 for module in "${modules[@]}"; do
@@ -28,6 +30,7 @@ main_print_usage() {
   echo
   echo "Commands:"
   echo "test                runs behavioural tests"
+  echo "benchmark           runs benchmark tests"
 }
 
 

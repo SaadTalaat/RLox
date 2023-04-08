@@ -1,0 +1,17 @@
+// Class declarations, 10,000 Iterations
+
+var NRUNS = 10000;
+
+var then = clock();
+for(var cnt = 0; cnt < NRUNS; cnt = cnt + 1) {
+  class Test {
+    init(){
+      return;
+    }
+  }
+}
+
+var elapsed = clock() - then;
+var per_run  = elapsed / NRUNS;
+
+print "Took: " + elapsed + " ms, average iteration: " + per_run + " ms";

@@ -66,7 +66,6 @@ rlox_test() {
   failed=0
   cmd=$1
   shift
-  #options=$(getopt -o hrdt: -l help,release,debug,target: -n "$0" -- "$@") || exit
   set_target "default"
   while getopts ":t:hrd" option; do
     case "$option" in
@@ -77,10 +76,14 @@ rlox_test() {
       r )
         msg ">> Using release profile"
         PROFILE=release
+        PROFILE_PATH=release
+        set_target "$TARGET"
         ;;
       d )
         msg ">> Using debug profile"
-        PROFILE=debug
+        PROFILE=dev
+        PROFILE_PATH=debug
+        set_target "$TARGET"
         ;;
       t)
         set_target "$OPTARG"

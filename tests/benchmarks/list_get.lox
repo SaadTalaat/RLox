@@ -1,0 +1,83 @@
+// Accessing a list of 1000 elements, 10,000 Iterations
+
+class Node {
+  init(value){
+    this.value = value;
+    this.previous = nil;
+  }
+}
+
+class List {
+  init(){
+    this.handle = Node(nil);
+    this.size = 0;
+  }
+
+  push(value){
+    var node = Node(value);
+    node.previous = this.handle;
+    this.handle = node;
+    this.size = this.size + 1;
+  }
+
+  pop() {
+    var last = this.handle;
+    this.handle.previous = nil;
+    this.handle = last.previous;
+    this.size = this.size -1;
+    return last.value;
+  }
+
+  insert(index, value){
+    if (index >= this.size)
+      // Out of bound;
+      return nil;
+
+    var steps = this.size - index - 1;
+    var new_node = Node(value);
+    var node = this.handle;
+    var prev_node = nil;
+
+    for(var idx = 0; idx < steps; idx = idx + 1){
+      prev_node = node;
+      node = node.previous;
+    }
+
+    // Point to the same previous node as the old node;
+    new_node.previous = node.previous;
+    // Now make the next node point to us.
+    prev_node.previous = new_node;
+    // Detach removed node
+    node.previous = nil;
+    return node.value;
+  }
+
+  get(index){
+    if (index >= this.size)
+      // Out of bound;
+      return nil;
+
+    var steps = this.size - index - 1;
+    var node = this.handle;
+    for(var idx = 0; idx < steps; idx = idx + 1){
+      node = node.previous;
+    }
+    return node.value;
+  }
+}
+
+// Make a list of 1000 elements
+var my_list = List();
+for (var cnt = 0; cnt < 1000; cnt = cnt + 1) {
+  my_list.push(cnt);
+}
+var NRUNS = 10000;
+var then = clock();
+for(var cnt = 0; cnt < NRUNS; cnt = cnt + 1) {
+  my_list.get(0);
+}
+
+var elapsed = clock() - then;
+var per_run  = elapsed / NRUNS;
+
+print "Took: " + elapsed + " ms, average iteration: " + per_run + " ms";
