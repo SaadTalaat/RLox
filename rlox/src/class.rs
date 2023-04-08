@@ -1,6 +1,6 @@
 use super::callable::Function;
 use super::value::LoxValue;
-use crate::interpret::{Environment, Result, RuntimeError, RuntimeErrorKind, TreeWalkInterpreter};
+use crate::interpret::{Result, TreeWalkInterpreter};
 use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -28,19 +28,17 @@ impl Class {
         };
 
         // Determine arity
-        let mut arity = 0;
-        if let Some(init) = methods.get("init") {
-            arity = match init {
-                func => func.arity,
-                _ => 0,
-            };
+        let mut cls_arity: usize = 0;
+        let init = methods.get("init");
+        if let Some(Function { arity, .. }) = init {
+            cls_arity = *arity;
         } else if let Some(base) = &base_class {
-            arity = base.arity;
+            cls_arity = base.arity;
         }
 
         Self {
             name: name.to_owned(),
-            arity: arity,
+            arity: cls_arity,
             base_class,
             methods: methods.into_iter().map(|(k, v)| (k, Rc::new(v))).collect(),
         }
@@ -62,10 +60,7 @@ impl Class {
 
         let instance = Rc::new(Instance::new(self));
         if let Some(initializer) = self.get_method("init") {
-            let bound_init: LoxValue = match initializer.as_ref() {
-                initializer => initializer.bind(&instance),
-                _ => panic!("initializer not callable?"),
-            };
+            let bound_init = initializer.bind(&instance);
 
             if let LoxValue::F(inner_init) = bound_init {
                 inner_init.call(interpreter, args)?;
@@ -120,11 +115,8 @@ impl Instance {
     pub fn get(self: &Rc<Self>, name: &str) -> Option<LoxValue> {
         match self.properties.borrow().get(name) {
             None => {
-                let method_ref = self.class.get_method(name)?;
-                match method_ref.as_ref() {
-                    method => Some(method.bind(self)),
-                    _ => None,
-                }
+                let method = self.class.get_method(name)?;
+                Some(method.bind(self))
             }
             Some(v) => Some(v.clone()),
         }

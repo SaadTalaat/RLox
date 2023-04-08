@@ -1,5 +1,3 @@
-use super::error::{RuntimeError, RuntimeErrorKind};
-use super::Result;
 use crate::LoxValue;
 use std::cell::RefCell;
 use std::collections::HashMap;

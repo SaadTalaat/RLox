@@ -3,14 +3,15 @@ use crate::LoxValue;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum RuntimeErrorKind {
-    FatalError,
     AccessOnPrimitiveType,
+    FatalError,
+    GeneralError,
     IllegalInheritance,
     IllegalLiteral,
     IllegalUnaryOp,
-    IllegalBinaryOperation,
+    IllegalBinaryOp,
     MismatchedArgs,
     NotCallable,
     NotImplemented,

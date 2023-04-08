@@ -1,6 +1,7 @@
 use env_logger;
 use log::{debug, error, info, warn};
 use rlox::code::Code;
+use rlox::interpret::RuntimeErrorKind;
 use rlox::interpret::TreeWalkInterpreter;
 use rlox::lex::Lexer;
 use rlox::parse::RDParser;
@@ -58,7 +59,7 @@ fn run(source: String) {
             Ok(expr) => {}
             Err(error) => {
                 eprintln!("> [Resolver]: {error}");
-                errors +=1;
+                errors += 1;
             }
         }
     }
@@ -66,7 +67,17 @@ fn run(source: String) {
         std::process::exit(103);
     }
     let mut interpreter = TreeWalkInterpreter::new();
-    interpreter.run(exprs, &code);
+    let result = interpreter.run(exprs, &code);
+    match result {
+        Err(error) if error.kind == RuntimeErrorKind::FatalError => {
+            std::process::exit(105);
+        }
+        Err(error) => {
+            std::process::exit(104);
+        }
+        _ => (),
+    }
+    eprintln!("RESULT: {:?}", result);
     println!(
         "Parsed {counter} tokens, with {errors} errors, in {} ms",
         now.elapsed().as_millis()

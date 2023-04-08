@@ -28,18 +28,20 @@ impl TreeWalkInterpreter {
         Self { env }
     }
 
-    pub fn run<T: Eval + HasLocation>(&mut self, stmts: Vec<T>, code: &Code) {
+    pub fn run<T: Eval + HasLocation>(&mut self, stmts: Vec<T>, code: &Code) -> Result<()> {
         for stmt in stmts.iter() {
             let result = self.eval(stmt);
             if let Ok(LoxValue::NoValue) = result {
                 continue;
             } else if let Err(error) = result {
+                // XXX: Move error reporting outside
                 println!("{}", "-".repeat(30));
                 println!("Error: {}", error);
                 code.print_location(&error);
-                panic!("EXIT");
+                return Err(error);
             }
         }
+        Ok(())
     }
 
     pub fn eval<T: Eval>(&mut self, expr: &T) -> Result<LoxValue> {
@@ -114,7 +116,7 @@ impl TreeWalkInterpreter {
             | Operator::EqEq
             | Operator::BangEq => Self::compare(left, op, right, left_expr.get_location()),
             _ => Err(RuntimeError::new(
-                RuntimeErrorKind::IllegalBinaryOperation,
+                RuntimeErrorKind::IllegalBinaryOp,
                 left_expr.get_location(),
             )),
         }
@@ -196,7 +198,7 @@ impl TreeWalkInterpreter {
         match (l_op, r_op) {
             (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l - r)),
             _ => Err(RuntimeError::new(
-                RuntimeErrorKind::IllegalBinaryOperation,
+                RuntimeErrorKind::IllegalBinaryOp,
                 location,
             )),
         }
@@ -209,7 +211,7 @@ impl TreeWalkInterpreter {
             }
             (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l / r)),
             _ => Err(RuntimeError::new(
-                RuntimeErrorKind::IllegalBinaryOperation,
+                RuntimeErrorKind::IllegalBinaryOp,
                 location,
             )),
         }
@@ -219,7 +221,7 @@ impl TreeWalkInterpreter {
         match (l_op, r_op) {
             (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l * r)),
             _ => Err(RuntimeError::new(
-                RuntimeErrorKind::IllegalBinaryOperation,
+                RuntimeErrorKind::IllegalBinaryOp,
                 location,
             )),
         }
@@ -229,7 +231,7 @@ impl TreeWalkInterpreter {
         match (l_op, r_op) {
             (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l % r)),
             _ => Err(RuntimeError::new(
-                RuntimeErrorKind::IllegalBinaryOperation,
+                RuntimeErrorKind::IllegalBinaryOp,
                 location,
             )),
         }
@@ -242,7 +244,7 @@ impl TreeWalkInterpreter {
             (LoxValue::Str(l), LoxValue::Number(r)) => Ok(LoxValue::Str(format!("{}{}", l, r))),
             (LoxValue::Number(l), LoxValue::Str(r)) => Ok(LoxValue::Str(format!("{}{}", l, r))),
             _ => Err(RuntimeError::new(
-                RuntimeErrorKind::IllegalBinaryOperation,
+                RuntimeErrorKind::IllegalBinaryOp,
                 location,
             )),
         }
@@ -263,7 +265,7 @@ impl TreeWalkInterpreter {
             Operator::BangEq => LoxValue::Boolean(l_op != r_op),
             _ => {
                 return Err(RuntimeError::new(
-                    RuntimeErrorKind::IllegalBinaryOperation,
+                    RuntimeErrorKind::IllegalBinaryOp,
                     location,
                 ))
             }
@@ -294,7 +296,7 @@ impl Eval for Stmt {
             }
             StmtKind::Block(stmts) => {
                 let tmp_env = interpreter.get_env();
-                let new_env = interpreter.push_env();
+                interpreter.push_env();
                 for stmt in stmts.into_iter() {
                     interpreter.eval(stmt)?;
                 }
@@ -356,11 +358,13 @@ impl Eval for Stmt {
                             // make sure the base class is actually a reference
                             // to a class `LoxValue::K`
                             LoxValue::K(_) => Some(base_value),
-                            // Cannot inherit from non-class values.
+                            // Cannot inherit from non-class identifiers (e.g. function, variables)
+                            // This behavior is handled at resolution time
+                            // if it made it to runtime, something is wrong!
                             _ => {
                                 return Err(RuntimeError::new(
-                                    RuntimeErrorKind::IllegalInheritance,
-                                    &b_expr.location,
+                                    RuntimeErrorKind::FatalError,
+                                    &self.location,
                                 ))
                             }
                         }
@@ -385,6 +389,9 @@ impl Eval for Stmt {
                         );
                         method_list.insert(name.clone(), func);
                     } else {
+                        // methods should always resolve to a Function,
+                        // otherwise this behavior slipped through
+                        // the parser
                         return Err(RuntimeError::new(
                             RuntimeErrorKind::FatalError,
                             &self.location,
@@ -415,14 +422,17 @@ impl Eval for Expr {
             ExprKind::Literal { value } => Ok(value.clone()),
             ExprKind::Grouping { ref expr } => interpreter.eval(expr.as_ref()),
             ExprKind::Unary { operator, expr } => interpreter.eval_unary(operator, expr.as_ref()),
+
             ExprKind::Binary {
                 left,
                 operator,
                 right,
             } => interpreter.eval_binary(left.as_ref(), operator, right.as_ref()),
+
             ExprKind::Ternary { root, left, right } => {
                 interpreter.eval_ternary(root.as_ref(), left.as_ref(), right.as_ref())
             }
+
             ExprKind::Logical {
                 left,
                 operator,
@@ -437,6 +447,7 @@ impl Eval for Expr {
                     &self.location,
                 )),
             },
+
             ExprKind::Super { property, depth } => {
                 let maybe_base_cls = interpreter.read_at("super", *depth);
                 // Do we have a base class?
@@ -456,7 +467,7 @@ impl Eval for Expr {
                             ));
                         }
                     } else {
-                        // Fatal error, this should exist on the preciding
+                        // Fatal error, this should exist on the preceding
                         // environment
                         Err(RuntimeError::new(
                             RuntimeErrorKind::FatalError,
@@ -465,12 +476,15 @@ impl Eval for Expr {
                     }
                 } else {
                     // Class has no base class
+                    // the behavior should be caught at resolution
+                    // time, can't happen here.
                     Err(RuntimeError::new(
-                        RuntimeErrorKind::NoBaseClass,
+                        RuntimeErrorKind::FatalError,
                         &self.location,
                     ))
                 }
             }
+
             ExprKind::Var { name, depth } => match interpreter.read_at(&name, *depth) {
                 // Return a copy of the stored value.
                 Some(v) => Ok(v.clone()),
@@ -489,6 +503,7 @@ impl Eval for Expr {
                 ));
                 Ok(lambda)
             }
+
             ExprKind::Assign { name, expr, depth } => {
                 let r_value = interpreter.eval(expr.as_ref())?;
                 // Return a copy of the assigned value
@@ -499,7 +514,9 @@ impl Eval for Expr {
                         &self.location,
                     ))
             }
+
             ExprKind::Call { callee, args } => interpreter.eval_call(callee.as_ref(), args),
+
             ExprKind::Get { name, object } => {
                 let instance = interpreter.eval(object.as_ref())?;
                 match instance {
@@ -516,6 +533,7 @@ impl Eval for Expr {
                     )),
                 }
             }
+
             ExprKind::Set {
                 name,
                 object,
@@ -533,6 +551,7 @@ impl Eval for Expr {
                     )),
                 }
             }
+
             _ => Err(RuntimeError::new(
                 RuntimeErrorKind::UnrecognizedExpression,
                 &self.location,
