@@ -1,0 +1,7 @@
+- Runtime behavioral tests
+- benchmark tests
+- reduce how much cloning going around in the interpreter
+- break down RDParser
+- break down the interpreter further
+- try to lose recursion from the environment get_at and set_at
+  probably causes an excessive overhead to accessing identifiers.
