@@ -26,4 +26,4 @@ jobs:
     - name: Run unit tests
       run: cargo test --verbose
     - name: Run behavioral tests
-      run: ./tools/test all
+      run: ./tools/invoke test all

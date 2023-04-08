@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+RUST_BACKTRACE=1
+PROFILE=release
+TARGET=
+RUNTIME=
+RUNTIME_OPTS=
+
+
+load_module() {
+  module="$1"
+  . "$module" || { 
+    echo "Couldn't load module $module"
+      exit 1 
+    }
+}
+
+modules=(
+  tools/test.sh
+  tools/utils.sh
+)
+for module in "${modules[@]}"; do
+  load_module $module
+done
+
+main_print_usage() {
+  echo "Usage: invoke <cmd>"
+  echo
+  echo "Commands:"
+  echo "test                runs behavioural tests"
+}
+
+
+rlox_main() {
+  set_target "default"
+  if [ "$(uname)" = "Darwin" ]; then
+    check_installed "gdate"
+    DATE=$(command -v gdate)
+  else
+    check_installed "date"
+    DATE=$(command -v date)
+  fi
+  cmd=$1
+  shift;
+  function=$(declare -F | grep -oe "rlox_$cmd")
+  if [ "$function" = "rlox_$cmd" ]; then
+    "rlox_$cmd" "$@"
+  else
+    main_print_usage
+  fi
+}
+rlox_main "$@"
