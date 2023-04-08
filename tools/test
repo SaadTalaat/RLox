@@ -6,6 +6,20 @@ GREEN='\033[0;32m'
 GREY='\033[0;37m'
 NC='\033[0m'
 
+if [ "$(uname)" = "Darwin" ]; then
+  DATE=$(command -v gdate)
+  if [ "$DATE" = "" ]; then
+    error_msg "(gdate) not installed, run: brew install coreutils"
+    exit
+  fi
+else
+  DATE=$(command -v date)
+  if [ "$DATE" = "" ]; then
+    error_msg "couldn't find [date] command"
+    exit
+  fi
+fi
+
 msg() {
   echo "${GREY}$1${NC}"
 }
@@ -66,6 +80,7 @@ run_tests() {
 
 
 main() {
+  then=$($DATE +"%s%N")
   cmd=$1
   failed=0
   build
@@ -100,7 +115,9 @@ main() {
       print_usage
       ;;
   esac
-  echo ">> Finished in $GREEN($SECONDS seconds).$NC"
+  now=$($DATE +"%s%N")
+  elapsed=$(( (now - then) / 1000000))
+  echo ">> Finished in $GREEN($elapsed ms).$NC"
   [ $failed -eq 0 ] || exit 1
 }
 
