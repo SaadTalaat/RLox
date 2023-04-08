@@ -1,6 +1,19 @@
 - Runtime behavioral tests
 - benchmark tests
+  - factorial
+  - List access time
+  - Try mandlebrot?
+  - class instantiation
+  - basic arithmitic operations
+  - calling bound methods on instances
+  - calling super methods.
+  - class declarations.
 - reduce how much cloning going around in the interpreter
+  - when identifiers to primitive types and literals are evaled
+    the values are copies, let's not do that since it creates
+    unnecessary overhead on binary operations
+  - only a copy a primitive type on assignment.
+  - do we have to pass functions by value? (thinking binding).
 - break down RDParser
 - break down the interpreter further
 - try to lose recursion from the environment get_at and set_at
