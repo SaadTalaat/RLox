@@ -297,3 +297,26 @@ class super(){}
 class or(){}
 class and(){}
 #end
+
+#test(accessing super on an instance)
+class Parent {
+  method() {
+    return 1;
+  }
+}
+class Child < Parent {}
+var instance = Child();
+instance.super.method();
+#end
+
+#test(accessing primitive type on instance)
+class Test{}
+var instance = Test();
+instance.property = instance.1;
+#end
+
+#test(assigning to primitive type on instance)
+class Test{}
+var instance = Test();
+instance.1 = 2;
+#end

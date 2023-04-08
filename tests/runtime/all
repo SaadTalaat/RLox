@@ -1,0 +1,172 @@
+#test(illegal unary operand 1)
+-"A string";
+#end
+
+#test(illegal unary operand 2)
+-false;
+#end
+
+#test(illegal unary operand 3)
+-nil;
+#end
+
+#test(illegal subtraction 1)
+1 - "String";
+#end
+
+#test(illegal subtraction 2)
+"String" - 1;
+#end
+
+#test(illegal subtraction 3)
+true - 1;
+#end
+
+#test(illegal subtraction 4)
+1 - false;
+#end
+
+#test(illegal subtraction 5)
+1 - nil;
+#end
+
+#test(illegal division 1)
+1 / "String";
+#end
+
+#test(illegal division 2)
+"String" / 1;
+#end
+
+#test(illegal division 3)
+true / 1;
+#end
+
+#test(illegal division 4)
+1 / false;
+#end
+
+#test(illegal division 5)
+1 / nil;
+#end
+
+#test(division by zero)
+10 / 0;
+#end
+
+#test(illegal multiplication 1)
+1 * "String";
+#end
+
+#test(illegal multiplication 2)
+"String" * 1;
+#end
+
+#test(illegal multiplication 3)
+true * 1;
+#end
+
+#test(illegal multiplication 4)
+1 * false;
+#end
+
+#test(illegal multiplication 5)
+1 * nil;
+#end
+
+#test(illegal modulo 1)
+1 % "String";
+#end
+
+#test(illegal modulo 2)
+"String" % 1;
+#end
+
+#test(illegal modulo 3)
+true % 1;
+#end
+
+#test(illegal modulo 4)
+1 % false;
+#end
+
+#test(illegal modulo 5)
+1 % nil;
+#end
+
+#test(illegal addition 1)
+true + 1;
+#end
+
+#test(illegal addition 2)
+1 + false;
+#end
+
+#test(illegal addition 3)
+1 + nil;
+#end
+
+#test(mismatched args 1)
+fun test(a) {
+  x = a + 1;
+}
+test(1, 2);
+#end
+
+#test(mismatched args 2)
+fun test(a) {
+  x = a + 1;
+}
+test();
+#end
+
+#test(mismatched args 3)
+clock(1);
+#end
+
+#test(calling non-callables 1)
+var x = 1;
+x();
+#end
+
+#test(calling non-callables 2)
+class Test{
+  init() {
+    this.property = 1;
+  }
+}
+var instance = Test();
+instance.property();
+#end
+
+#test(calling non-callables 3)
+class Test{}
+var instance = Test();
+instance.property = 1;
+instance.property();
+#end
+
+#test(assigning to undeclared variables)
+x = 1;
+#end
+
+#test(accessing an undeclared variable)
+var x = y + 1;
+#end
+
+#test(accessing non-existent property on super)
+class Parent {}
+class Child < Parent {
+  method(){
+    x = 1 + super.x;
+  }
+}
+var instance = Child();
+instance.method();
+#end
+
+#test(using un-initialized properties)
+class Test{}
+var instance = Test();
+1 + instance.non_existent;
+#end

@@ -83,7 +83,8 @@ main() {
       [ $? -eq 0 ] || failed=1
       ;;
     "runtime")
-      echo "TODO"
+      run_tests "runtime" tests/runtime 104
+      [ $? -eq 0 ] || failed=1
       ;;
     "all")
       run_tests "lexical" tests/lex 101
@@ -91,6 +92,8 @@ main() {
       run_tests "syntax" tests/parse 102
       [ $? -eq 0 ] || failed=1
       run_tests "resolution" tests/resolve 103
+      [ $? -eq 0 ] || failed=1
+      run_tests "runtime" tests/runtime 104
       [ $? -eq 0 ] || failed=1
       ;;
     *)
