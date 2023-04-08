@@ -2,7 +2,7 @@ use env_logger;
 use log::{debug, error, info, warn};
 use rlox::code::Code;
 use rlox::interpret::RuntimeErrorKind;
-use rlox::interpret::TreeWalkInterpreter;
+use rlox::interpret::{Globals, TreeWalkInterpreter};
 use rlox::lex::Lexer;
 use rlox::parse::RDParser;
 use rlox::parse::Resolver;
@@ -13,6 +13,8 @@ use std::io::{self, BufReader, BufWriter, Read, Write};
 fn run(source: String) {
     let now = std::time::Instant::now();
     let code = Code::new(&source);
+
+    // Lexical Analysis
     let lex_iter = Lexer::new(&source);
     let mut counter = 0;
     let mut errors = 0;
@@ -33,9 +35,9 @@ fn run(source: String) {
         std::process::exit(101);
     }
 
+    // Parsing
     let parse_iter = RDParser::new(tokens, &code);
     let mut exprs = vec![];
-
     for result in parse_iter {
         match result {
             Ok(expr) => {
@@ -52,7 +54,9 @@ fn run(source: String) {
         std::process::exit(102);
     }
 
-    let mut resolver = Resolver::new();
+    // Identifier resolution
+    let global_fns: Vec<String> = Globals::get().into_iter().map(|nfn| nfn.name).collect();
+    let mut resolver = Resolver::new(&global_fns);
     let results = resolver.resolve_stmts(&mut exprs);
     for result in results {
         match result {
@@ -77,11 +81,6 @@ fn run(source: String) {
         }
         _ => (),
     }
-    eprintln!("RESULT: {:?}", result);
-    println!(
-        "Parsed {counter} tokens, with {errors} errors, in {} ms",
-        now.elapsed().as_millis()
-    );
 }
 
 fn run_file(source_path: &str) -> Result<(), Box<dyn Error>> {

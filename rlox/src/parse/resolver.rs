@@ -21,14 +21,19 @@ pub struct Resolver {
 }
 
 impl Resolver {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(native_fns: &Vec<String>) -> Self {
+        let mut me = Self {
             scopes: vec![HashMap::new()],
             loop_depth: 0,
             function_depth: 0,
             class_depth: 0,
             in_subclass: false,
+        };
+        let global_scope = &mut me.scopes[0];
+        for nfn in native_fns {
+            global_scope.insert(nfn.clone(), IdentifierType::Function);
         }
+        me
     }
 
     fn begin_scope(&mut self) {
@@ -339,7 +344,7 @@ impl Resolver {
     }
 
     fn get_type(&self, key: &str, depth: usize) -> &IdentifierType {
-        let cursor = (self.scopes.len() as i32) - (depth as i32) -1;
+        let cursor = (self.scopes.len() as i32) - (depth as i32) - 1;
         if self.scopes[cursor as usize].contains_key(key) {
             self.scopes[cursor as usize].get(key).unwrap()
         } else {
