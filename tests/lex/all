@@ -1,0 +1,17 @@
+#test(Unterminated string)
+var i = "hello;
+#end
+
+#test(Unterminated block comment)
+/* this is a bad comment
+#end
+
+#test(Unterminated nested block comment)
+/* bad comment /* good comment */
+#end
+
+#test(Bad variable name)
+var متغير = 1;
+#end
+
+

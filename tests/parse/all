@@ -1,0 +1,306 @@
+#test(Unbalanced parentheses)
+var a = (1;
+#end
+
+#test(Unterminated Block)
+    {
+      1 + 1;
+#end
+
+#test(Empty unary expression)
+var y = !;
+#end
+
+#test(illegal unary expression)
+var y = 1!;
+#end
+
+#test(Empty term expression)
++;
+#end
+
+#test(Illegal term expression)
+1+;
+#end
+
+#test(Empty factor expression)
+*;
+#end
+
+#test(Illegal factor expression)
+1/;
+#end
+
+#test(Empty comparison)
+>;
+#end
+
+#test(Illegal comparison)
+1 <;
+#end
+
+#test(Empty Equality)
+==;
+#end
+
+#test(Illegal equality)
+1 ==;
+#end
+
+#test(Illegal chained equality)
+1 == 2 ==;
+#end
+
+#test(Empty logic operator)
+or;
+#end
+
+#test(Illegal logic operator)
+true and;
+#end
+
+#test(Empty assignment)
+var x = 1;
+x = ;
+#end
+
+#test(rvalue to rvalue assignment)
+1 = 2;
+#end
+
+#test(expr statement missing semicolon)
+"hello"
+#end
+
+#test(expr statement missing semicolon 2)
+{"hello"}
+#end
+
+#test(expr statement missing semicolon 3)
+fun test(){
+  return
+}
+#end
+
+#test(continue missing semicolon)
+while (false) {
+  continue
+}
+#end
+
+#test(break missing semicolon)
+while (false) {
+  break
+}
+#end
+
+#test(print with no value)
+print;
+#end
+
+#test(for without parentheses)
+for {
+  break;
+}
+#end
+
+#test(for with unbalanced braces)
+for(;;{
+
+    }
+#end
+
+#test(for with no semi-colon after initializer)
+    for(var x = 0) {
+      break;
+    }
+
+#end
+
+#test(for with no semi-colon after condition)
+    for(var x = 0; x < 10) {
+      break;
+    }
+#end
+
+#test(for with expr in initializer)
+    for(1+2; false; )
+    {
+      break;
+    }
+#end
+
+#test(for without braces)
+for(;;)
+#end
+
+#test(for with unbalances braces)
+for(;false;){
+#end
+
+#test(while with no parentheses around condition)
+  while false {
+    break;
+  }
+#end
+
+#test(while with empty parentheses)
+  while() {
+    break;
+  }
+#end
+
+#test(while without braces)
+while (false)
+#end
+
+#test(while with unbalances braces)
+  while (false) {
+#end
+
+#test(if without parentheses)
+    if false {
+      1 + 2;
+    }
+
+#end
+
+#test(if with empty condition)
+    if () {
+      1+2;
+    }
+#end
+
+#test(if with no then block)
+if (false)
+#end
+
+#test(else with no then block)
+if (false) {} else
+#end
+
+#test(chained else with no block)
+if (false) {if (false) else}
+#end
+
+#test(semi-colon after while loop)
+while(false){1+2;};
+#end
+
+#test(semi-colon after for loop)
+for(;false;){1+2;};
+#end
+
+#test(semi-colon after if block)
+if (false) { 1+2; };
+#end
+
+#test(variable declaration missing name)
+var = 1;
+#end
+
+#test(variable declaration missing r-value)
+var x = ;
+#end
+
+#test(function declaration missing keyword)
+test () { 1+2; }
+#end
+
+#test(function declaration missing name)
+fun () { 1+2; }
+#end
+
+#test(function declaration missing parentheses)
+fun test { 1+ 2; }
+#end
+
+#test(function declaration missing block)
+fun test()
+#end
+
+#test(lambda expr with a name)
+var a = fun test() {};
+#end
+
+#test(lambda expr without parentheses)
+var a = fun {};
+#end
+
+#test(lambda expr without block)
+var a = fun();
+#end
+
+#test(class declaration missing a name)
+class {
+  init(){
+    var y = 1 + 2;
+  }
+}
+#end
+
+#test(class declaration missing class keyword)
+Foo {
+  init(){
+    var y = 1 + 2;
+  }
+}
+#end
+
+#test(class declaration missing block)
+class Foo
+#end
+
+#test(semi-colon after class declaration block)
+class Foo {};
+#end
+
+#test(assigning to a keyword)
+fun = 1;
+for = 1;
+if = 1;
+else = 1;
+class = 1;
+this = 1;
+super = 1;
+and = 1;
+or = 1;
+#end
+
+#test(declaring using keyword)
+var fun = 1;
+var for = 1;
+var if = 1;
+var else = 1;
+var class = 1;
+var this = 1;
+var super = 1;
+var and = 1;
+var or = 1;
+#end
+
+#test(function names using keyword)
+fun fun(){}
+fun var(){}
+fun if(){}
+fun else(){}
+fun class(){}
+fun while(){}
+fun for(){}
+fun super(){}
+fun or(){}
+fun and(){}
+#end
+
+#test(class names using keyword)
+class fun(){}
+class var(){}
+class if(){}
+class else(){}
+class class(){}
+class while(){}
+class for(){}
+class super(){}
+class or(){}
+class and(){}
+#end

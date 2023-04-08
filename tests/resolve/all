@@ -1,0 +1,134 @@
+
+#test(break outside loop 1)
+break;
+#end
+
+#test(break outside loop 2)
+fun test () {
+  break;
+}
+#end
+
+#test(break outside loop 3)
+if (true) {
+  break
+}
+#end
+
+#test(break outside loop 4)
+class {
+  method(){
+    break
+  }
+}
+#end
+
+#test(continue outside loop 1)
+continue;
+#end
+
+#test(continue outside loop 2)
+fun test () {
+  continue;
+}
+#end
+
+#test(continue outside loop 3)
+if (true) {
+  continue
+}
+#end
+
+#test(continue outside loop 4)
+class {
+  method(){
+    continue
+  }
+}
+#end
+
+#test(return outside function 1)
+return 1;
+#end
+
+#test(return outside function 2)
+if (true){
+  return;
+}
+#end
+
+#test(return outside function 3)
+while (false){
+  return;
+}
+#end
+
+#test(return outside function 4)
+{
+  return;
+}
+#end
+
+#test(super in base class)
+class Test {
+  method () {
+    super.another_method();
+  }
+}
+#end
+
+#test(super outside class 1)
+super.test();
+#end
+
+#test(super outside class 2)
+fun function() {
+  super.test();
+}
+#end
+
+#test(super outside class 3)
+var x = fun () {
+  super.test();
+}
+#end
+
+#test(super outside class 4)
+if (true){
+  super.test();
+}
+#end
+
+#test(super outside class 5)
+while (false){
+  super.test();
+}
+#end
+
+#test(this outside class)
+this;
+#end
+
+#test(this outside class 2)
+fun function() {
+  this.test();
+}
+#end
+
+#test(this outside class 3)
+var x = fun () {
+  this.test();
+}
+#end
+
+#test(this outside class 4)
+if (true){
+  this.test();
+}
+#end
+
+#test(this outside class 5)
+while (false){
+  this.test();
+}
+#end
