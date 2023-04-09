@@ -4,7 +4,7 @@ use super::LoxValue;
 use crate::interpret::{Environment, Result, RuntimeErrorKind, TreeWalkInterpreter};
 use std::rc::Rc;
 
-pub type LoxApplyFn = fn(Vec<LoxValue>) -> Result<LoxValue>;
+type LoxApplyFn = fn(Vec<LoxValue>) -> Result<LoxValue>;
 
 #[derive(Debug, Clone)]
 pub struct NativeFunction {

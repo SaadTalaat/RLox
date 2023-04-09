@@ -1,4 +1,4 @@
-use crate::code::CodeLocation;
+use crate::code::{CodeLocation, HasLocation};
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
@@ -58,6 +58,12 @@ impl Error for ParseError {}
 
 impl Display for ParseError {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "{:?}", self)
+        write!(formatter, "Syntax Error: {:?}", self.kind)
+    }
+}
+
+impl HasLocation for ParseError {
+    fn get_location(&self) -> &CodeLocation {
+        &self.location
     }
 }

@@ -10,7 +10,7 @@ pub enum LoxValue {
     Nil,
     Number(f64),
     Boolean(bool),
-    Str(String),
+    Str(Rc<String>),
     NF(Rc<NativeFunction>),
     F(Rc<Function>),
     K(Rc<Class>),

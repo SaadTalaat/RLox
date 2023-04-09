@@ -65,7 +65,7 @@ impl RuntimeError {
 impl Error for RuntimeError {}
 impl Display for RuntimeError {
     fn fmt(&self, formatter: &mut Formatter) -> fmt::Result {
-        write!(formatter, "{:?}", self.kind)
+        write!(formatter, "Runtime Error: {:?}", self.kind)
     }
 }
 

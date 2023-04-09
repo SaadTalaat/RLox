@@ -1,5 +1,6 @@
 use super::lex::{Token, TokenType};
 use super::LoxValue;
+use std::rc::Rc;
 
 pub trait HasLocation {
     fn get_location(&self) -> &CodeLocation;
@@ -68,7 +69,9 @@ impl<'a> Code<'a> {
                     length: token.location.length - 2,
                     ..token.location
                 };
-                LoxValue::Str(self.lexeme(location).to_owned())
+
+                let lexeme = String::from(self.lexeme(location));
+                LoxValue::Str(Rc::new(lexeme))
             }
             _ => LoxValue::NoValue,
         }

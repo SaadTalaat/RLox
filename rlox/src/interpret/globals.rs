@@ -1,11 +1,11 @@
 use super::{Result, RuntimeError, RuntimeErrorKind};
-use crate::callable::{LoxApplyFn, NativeFunction};
+use crate::callable::{NativeFunction};
 use crate::LoxValue;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct Globals {}
 impl Globals {
-    fn clock(args: Vec<LoxValue>) -> Result<LoxValue> {
+    fn clock(_: Vec<LoxValue>) -> Result<LoxValue> {
         let time = SystemTime::now();
         match time.duration_since(UNIX_EPOCH) {
             Ok(duration) => Ok(LoxValue::Number(duration.as_micros() as f64 / 1000.0)),

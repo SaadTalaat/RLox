@@ -243,11 +243,26 @@ impl TreeWalkInterpreter {
     fn add(l_op: LoxValue, r_op: LoxValue, location: &CodeLocation) -> Result<LoxValue> {
         match (l_op, r_op) {
             (LoxValue::Number(l), LoxValue::Number(r)) => Ok(LoxValue::Number(l + r)),
-            (LoxValue::Str(l), LoxValue::Str(r)) => Ok(LoxValue::Str(l + r.as_str())),
-            (LoxValue::Str(l), LoxValue::Number(r)) => Ok(LoxValue::Str(format!("{}{:.6}", l, r))),
-            (LoxValue::Number(l), LoxValue::Str(r)) => Ok(LoxValue::Str(format!("{:.6}{}", l, r))),
-            (LoxValue::Str(l), LoxValue::Nil) => Ok(LoxValue::Str(format!("{}nil", l,))),
-            (LoxValue::Nil, LoxValue::Str(r)) => Ok(LoxValue::Str(format!("nil{}", r))),
+            (LoxValue::Str(l), LoxValue::Str(r)) => {
+                let new_string = String::from(l.as_str()) + r.as_str();
+                Ok(LoxValue::Str(Rc::new(new_string)))
+            }
+            (LoxValue::Str(l), LoxValue::Number(r)) => {
+                let new_string = format!("{}{:.6}", l.as_str(), r);
+                Ok(LoxValue::Str(Rc::new(new_string)))
+            }
+            (LoxValue::Number(l), LoxValue::Str(r)) => {
+                let new_string = format!("{:.6}{}", l, r.as_str());
+                Ok(LoxValue::Str(Rc::new(new_string)))
+            }
+            (LoxValue::Str(l), LoxValue::Nil) => {
+                let new_string = format!("{}nil", l.as_str());
+                Ok(LoxValue::Str(Rc::new(new_string)))
+            }
+            (LoxValue::Nil, LoxValue::Str(r)) => {
+                let new_string = format!("nil{}", r.as_str());
+                Ok(LoxValue::Str(Rc::new(new_string)))
+            }
             _ => Err(RuntimeError::new(
                 RuntimeErrorKind::IllegalBinaryOp,
                 location,
@@ -444,7 +459,7 @@ impl Eval for Expr {
             } => interpreter.eval_logical(left.as_ref(), operator, right.as_ref()),
 
             ExprKind::This { depth } => match interpreter.read_at("this", *depth) {
-                Some(v) => Ok(v.clone()),
+                Some(v) => Ok(v),
                 // "this" keyword should always resolve to a value!
                 None => Err(RuntimeError::new(
                     RuntimeErrorKind::FatalError,
@@ -491,7 +506,7 @@ impl Eval for Expr {
 
             ExprKind::Var { name, depth } => match interpreter.read_at(&name, *depth) {
                 // Return a copy of the stored value.
-                Some(v) => Ok(v.clone()),
+                Some(v) => Ok(v),
                 None => Err(RuntimeError::new(
                     RuntimeErrorKind::UndeclaredVariable,
                     &self.location,
@@ -557,11 +572,6 @@ impl Eval for Expr {
                     )),
                 }
             }
-
-            _ => Err(RuntimeError::new(
-                RuntimeErrorKind::UnrecognizedExpression,
-                &self.location,
-            )),
         }
     }
 }

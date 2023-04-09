@@ -1,6 +1,7 @@
 use env_logger;
-use log::{debug, error, info, warn};
+use log::{error, info};
 use rlox::code::Code;
+use rlox::failure::ErrorJournal;
 use rlox::interpret::RuntimeErrorKind;
 use rlox::interpret::{Globals, TreeWalkInterpreter};
 use rlox::lex::Lexer;
@@ -11,27 +12,23 @@ use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read, Write};
 
 fn run(source: String) {
-    let now = std::time::Instant::now();
     let code = Code::new(&source);
+    let ejournal = ErrorJournal::new(&code);
 
     // Lexical Analysis
     let lex_iter = Lexer::new(&source);
-    let mut counter = 0;
-    let mut errors = 0;
+    let mut errors = false;
     let mut tokens = vec![];
     for result in lex_iter {
         match result {
-            Ok(token) => {
-                tokens.push(token);
-                counter += 1
-            }
+            Ok(token) => tokens.push(token),
             Err(error) => {
-                eprintln!("> [Lexer]: {error}");
-                errors += 1;
+                ejournal.report(&error);
+                errors = true;
             }
         }
     }
-    if errors > 0 {
+    if errors {
         std::process::exit(101);
     }
 
@@ -40,17 +37,14 @@ fn run(source: String) {
     let mut exprs = vec![];
     for result in parse_iter {
         match result {
-            Ok(expr) => {
-                exprs.push(expr);
-                counter += 1;
-            }
+            Ok(expr) => exprs.push(expr),
             Err(error) => {
-                eprintln!("> [Parser]: {error}");
-                errors += 1;
+                ejournal.report(&error);
+                errors = true;
             }
         }
     }
-    if errors > 0 {
+    if errors {
         std::process::exit(102);
     }
 
@@ -61,23 +55,25 @@ fn run(source: String) {
     let results = resolver.resolve_stmts(&mut exprs);
     for result in results {
         match result {
-            Ok(expr) => {}
+            Ok(_) => {}
             Err(error) => {
-                eprintln!("> [Resolver]: {error}");
-                errors += 1;
+                ejournal.report(&error);
+                errors = true;
             }
         }
     }
-    if errors > 0 {
+    if errors {
         std::process::exit(103);
     }
     let mut interpreter = TreeWalkInterpreter::new(globals);
     let result = interpreter.run(exprs, &code);
     match result {
         Err(error) if error.kind == RuntimeErrorKind::FatalError => {
+            ejournal.report(&error);
             std::process::exit(105);
         }
         Err(error) => {
+            ejournal.report(&error);
             std::process::exit(104);
         }
         _ => (),
@@ -111,7 +107,7 @@ fn run_prompt() -> Result<(), Box<dyn Error>> {
     }
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn Error>> {
     env_logger::init();
     let args: Vec<String> = std::env::args().collect();
     if args.len() > 2 {
@@ -119,8 +115,8 @@ fn main() {
         std::process::exit(1);
     } else if args.len() == 2 {
         let source_path = &args[1];
-        run_file(source_path);
+        run_file(source_path)
     } else {
-        run_prompt();
+        run_prompt()
     }
 }
